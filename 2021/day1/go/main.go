@@ -7,10 +7,6 @@ import (
 	"strconv"
 )
 
-func puzzle1() {
-
-}
-
 func main() {
 	// open file
 	f, err := os.Open("../input.txt")
