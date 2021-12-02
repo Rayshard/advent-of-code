@@ -44,6 +44,7 @@ func main() {
 		rollingWindow = rollingWindow[1:]
 	}
 
+	depthIncreases = int(math.Max(float64(depthIncreases), 0))
 	rwIncreases = int(math.Max(float64(rwIncreases), 0))
 
 	if err := scanner.Err(); err != nil {
