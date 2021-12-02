@@ -44,9 +44,11 @@ func main() {
 		rollingWindow = rollingWindow[1:]
 	}
 
+	rwIncreases = int(math.Max(float64(rwIncreases), 0))
+
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
 
-	log.Println(depthIncreases, math.Max(float64(rwIncreases), 0))
+	log.Println(depthIncreases, rwIncreases)
 }
