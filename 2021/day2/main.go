@@ -21,6 +21,7 @@ func main() {
 	scanner := bufio.NewScanner(f)
 	hPos, p1_depth, p2_depth, aim := 0, 0, 0, 0
 
+	// aim is the same as p1_depth
 	for scanner.Scan() {
 		command := strings.Split(scanner.Text(), " ")
 		amt, _ := strconv.Atoi(command[1])
