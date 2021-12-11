@@ -8,9 +8,28 @@ import (
 	"strings"
 )
 
-type Coord struct {
-	x int
-	y int
+func calculate(laternfish [9]uint64, iterations int) uint64 {
+	for i := 0; i <= iterations; i++ {
+		var nextGeneration [9]uint64
+
+		for i, count := range laternfish {
+			if i == 0 {
+				nextGeneration[6] += count
+				nextGeneration[8] += count
+			} else {
+				nextGeneration[i-1] += count
+			}
+		}
+
+		laternfish = nextGeneration
+	}
+
+	var count uint64
+	for _, c := range laternfish {
+		count += c
+	}
+
+	return count
 }
 
 func main() {
@@ -35,29 +54,10 @@ func main() {
 		}
 	}
 
-	for i := 0; i <= 256; i++ {
-		var nextGeneration [9]uint64
-
-		for i, count := range laternfish {
-			if i == 0 {
-				nextGeneration[6] += count
-				nextGeneration[8] += count
-			} else {
-				nextGeneration[i-1] += count
-			}
-		}
-
-		laternfish = nextGeneration
-	}
-
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
 
-	var count uint64
-	for _, c := range laternfish {
-		count += c
-	}
-
-	log.Println(count)
+	log.Println(calculate(laternfish, 80))
+	log.Println(calculate(laternfish, 256))
 }
