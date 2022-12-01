@@ -7,22 +7,26 @@ fn main() -> io::Result<()> {
     let file = File::open("input.txt")?;
     let reader = BufReader::new(file);
 
-    let mut cur_elf_running_cal = 0;
-    let mut largest_cal_count = 0;
+    let mut totals = vec![0];
 
     for line in reader.lines() {
         let value = line.unwrap();
 
         if value.is_empty() {
-            cur_elf_running_cal = 0;
-        } else {
-            cur_elf_running_cal += value.parse::<i32>().unwrap();
-            if cur_elf_running_cal > largest_cal_count {
-                largest_cal_count = cur_elf_running_cal;
-            }
+            totals.push(0);
+        }
+        else {
+            *totals.last_mut().unwrap() += value.parse::<i32>().unwrap();
         }
     }
 
+    totals.sort();
+
+    let largest_cal_count =  totals.last().unwrap();
     println!("{}", largest_cal_count);
+
+    let top_3_cal_sum: i32 = totals[(totals.len() - 3)..].iter().sum();
+    println!("{}", top_3_cal_sum);
+    
     Ok(())
 }
