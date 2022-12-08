@@ -5,24 +5,15 @@ use std::{
 };
 
 fn get_visible(strip: &[(usize, u32)]) -> Vec<usize> {
-    let mut visible: Vec<usize> = Vec::new();
-    let mut tallest = 0;
-    
-    // forward
-    for (i, height) in strip {
-        if tallest == 0 || height > &tallest {
-            visible.push(*i);
-            tallest = *height;
-        }
-    }
+    let mut visible: Vec<usize> = vec![(*strip.first().unwrap()).0, (*strip.last().unwrap()).0];
 
-    tallest = 0;
+    for (i_strip, (i_map, height)) in strip.iter().enumerate() {
+        let heights = strip.iter().map(|(_, h)| *h).collect::<Vec<_>>();
+        let before_max = heights[..i_strip].iter().max().unwrap_or(&0);
+        let after_max = heights[i_strip + 1..].iter().max().unwrap_or(&0);
 
-    // reverse
-    for (i, height) in strip.iter().rev() {
-        if tallest == 0 || height > &tallest {
-            visible.push(*i);
-            tallest = *height;
+        if before_max < height || after_max < height {
+            visible.push(*i_map);
         }
     }
 
@@ -65,6 +56,10 @@ fn main() -> io::Result<()> {
 
     let num_visible = visible.len();
     println!("{num_visible:?}");
+
+    let x = get_visible(&[(0, 6), (1, 7), (2, 5), (3, 3), (4, 5)]);
+    let h: HashSet<&usize> = HashSet::from_iter(x.iter());
+    println!("{:?}", h);
 
     Ok(())
 }
