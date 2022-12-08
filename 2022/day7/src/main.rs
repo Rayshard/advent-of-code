@@ -101,7 +101,8 @@ impl FileSystem {
     }
 
     pub fn get_all_directories(&self) -> Vec<(FSID, &AOCDirectory)> {
-        self.elements.keys()
+        self.elements
+            .keys()
             .filter(|id| self.is_directory(**id))
             .map(|id| (*id, self.get_directory(*id)))
             .collect()
@@ -217,12 +218,26 @@ fn main() -> io::Result<()> {
     }
 
     print_directory(&file_system, 0, 0);
-    let sum: u64 = file_system
-        .get_all_directories()
+    let all_directories = file_system.get_all_directories();
+    let mut directory_sizes = all_directories
         .iter()
         .map(|(id, _)| file_system.get_size(*id))
-        .filter(|size| size <= &100000)
-        .sum();
+        .collect::<Vec<_>>();
+    directory_sizes.sort();
+
+    let sum: u64 = directory_sizes.iter().filter(|size| size <= &&100000).sum();
     println!("{sum}");
+
+    let total_space = 70000000;
+    let unused_space = total_space - file_system.get_size(0);
+    let minimum_size_deletable_dir = 30000000 - unused_space;
+    
+    for size in directory_sizes {
+        if size >= minimum_size_deletable_dir {
+            println!("{size}");
+            break;
+        }
+    }
+
     Ok(())
 }
