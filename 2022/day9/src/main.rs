@@ -51,16 +51,14 @@ fn main() -> io::Result<()> {
             dir => panic!("Invalid direction: {dir}"),
         };
 
-        let mut amt_to_move = parts[1].parse::<u64>().unwrap();
+        let amt_to_move = parts[1].parse::<u64>().unwrap();
 
-        while amt_to_move > 0 {
+        for _ in 0..amt_to_move {
             update_rope(&mut rope1, &direction);
             visited_by_tail1.insert(rope1.last().unwrap().clone());
 
             update_rope(&mut rope2, &direction);
             visited_by_tail2.insert(rope2.last().unwrap().clone());
-
-            amt_to_move -= 1;
         }
     }
 
