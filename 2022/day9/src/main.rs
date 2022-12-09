@@ -6,8 +6,8 @@ use std::{
 
 type Position = (i64, i64);
 
-fn update_tail(tail: &Position, head: &Position) -> Position {
-    let direction = match (head.0 - tail.0, head.1 - tail.1) {
+fn get_new_position(leader: &Position, follower: &Position) -> Position {
+    let direction = match (leader.0 - follower.0, leader.1 - follower.1) {
         (0, 0) | (1, 0) | (-1, 0) | (0, 1) | (0, -1) | (1, 1) | (-1, 1) | (-1, -1) | (1, -1) => {
             (0, 0)
         }
@@ -17,7 +17,16 @@ fn update_tail(tail: &Position, head: &Position) -> Position {
         ),
     };
 
-    (tail.0 + direction.0, tail.1 + direction.1)
+    (follower.0 + direction.0, follower.1 + direction.1)
+}
+
+fn update_rope(rope: &mut [Position], direction: &(i64, i64)) {
+    let (head_x, head_y) = rope[0];
+    rope[0] = (head_x + direction.0, head_y + direction.1);
+
+    for i in 1..rope.len() {
+        rope[i] = get_new_position(&rope[i - 1], &rope[i]);
+    }
 }
 
 fn main() -> io::Result<()> {
@@ -25,11 +34,11 @@ fn main() -> io::Result<()> {
     let reader = BufReader::new(file);
 
     let start: Position = (0, 0);
-    let mut head: Position = start.clone();
-    let mut tail: Position = start.clone();
-    let mut visited_by_tail: HashSet<Position> = HashSet::new();
+    let mut rope1 = [start.clone(); 2];
+    let mut rope2 = [start.clone(); 10];
+    let mut visited_by_tail1: HashSet<Position> = HashSet::from([*rope1.last().unwrap()]);
+    let mut visited_by_tail2: HashSet<Position> = HashSet::from([*rope2.last().unwrap()]);
 
-    visited_by_tail.insert(tail);
 
     for line in reader.lines().map(|line| line.unwrap()) {
         let parts = line.split_whitespace().collect::<Vec<_>>();
@@ -45,15 +54,18 @@ fn main() -> io::Result<()> {
         let mut amt_to_move = parts[1].parse::<u64>().unwrap();
 
         while amt_to_move > 0 {
-            head = (head.0 + direction.0, head.1 + direction.1);
-            tail = update_tail(&tail, &head);
+            update_rope(&mut rope1, &direction);
+            visited_by_tail1.insert(rope1.last().unwrap().clone());
 
-            visited_by_tail.insert(tail);
+            update_rope(&mut rope2, &direction);
+            visited_by_tail2.insert(rope2.last().unwrap().clone());
+
             amt_to_move -= 1;
         }
     }
 
-    println!("{}", visited_by_tail.len());
+    println!("{}", visited_by_tail1.len());
+    println!("{}", visited_by_tail2.len());
 
     Ok(())
 }
