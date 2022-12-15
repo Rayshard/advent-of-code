@@ -4,8 +4,33 @@ use std::{
     io::{self, BufRead, BufReader},
 };
 
-fn get_num_invalid_row_positions(row: i64, map: &HashMap<(i64, i64), (i64, i64)>) -> usize {
-    let mut invalid_row_positions = HashSet::<i64>::new();
+fn consolidate_ranges(ranges: &mut Vec<(i64, i64)>) -> Vec<(i64, i64)> {
+    ranges.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut result = Vec::new();
+    if let Some(range) = ranges.get(0) {
+        result.push(*range);
+    }
+
+    for (min, max) in &ranges[1..] {
+        let (_, prev_max) = result.last_mut().unwrap();
+
+        if min <= &(*prev_max + 1) {
+            if max <= prev_max {
+                continue;
+            } else {
+                *prev_max = *max;
+            }
+        } else {
+            result.push((*min, *max));
+        }
+    }
+
+    result
+}
+
+fn get_invalid_ranges_in_row(row: i64, map: &HashMap<(i64, i64), (i64, i64)>) -> Vec<(i64, i64)> {
+    let mut invalid_ranges = Vec::<(i64, i64)>::new();
 
     for ((sensor_x, sensor_y), (beacon_x, beacon_y)) in map {
         let dist_to_beacon = (sensor_x - beacon_x).abs() + (sensor_y - beacon_y).abs();
@@ -16,19 +41,23 @@ fn get_num_invalid_row_positions(row: i64, map: &HashMap<(i64, i64), (i64, i64)>
         }
 
         let remaining_dist = dist_to_beacon - dist_to_row;
-        let (min_x, max_x) = (sensor_x - remaining_dist, sensor_x + remaining_dist);
-
-        for x in min_x..=max_x {
-            invalid_row_positions.insert(x);
-        }
+        let range = (sensor_x - remaining_dist, sensor_x + remaining_dist);
 
         // if the beacon is in the row, we need to remove it
-        if beacon_y == &row && invalid_row_positions.contains(beacon_x) {
-            invalid_row_positions.remove(beacon_x);
+        if beacon_y == &row && (sensor_x - beacon_x).abs() <= remaining_dist {
+            if range.0 == range.1 {
+                continue;
+            } else if beacon_x == &range.0 {
+                invalid_ranges.push((range.0 + 1, range.1));
+            } else {
+                invalid_ranges.push((range.0, range.1 - 1));
+            }
+        } else {
+            invalid_ranges.push(range);
         }
     }
 
-    invalid_row_positions.len()
+    consolidate_ranges(&mut invalid_ranges)
 }
 
 fn main() -> io::Result<()> {
@@ -63,7 +92,51 @@ fn main() -> io::Result<()> {
         })
         .collect::<HashMap<_, _>>();
 
-    println!("{}", get_num_invalid_row_positions(2000000, &map));
+    // Part 1
+    {
+        let num_invalid_positions = get_invalid_ranges_in_row(2000000, &map)
+            .iter()
+            .fold(0, |acc, (min, max)| acc + (max - min + 1));
+
+        println!("{:#?}", num_invalid_positions);
+    }
+
+    // Part 2
+    let mut row_beacons = HashMap::<i64, HashSet<i64>>::new();
+    for (x, row) in map.values() {
+        if row_beacons.contains_key(row) {
+            row_beacons.get_mut(row).unwrap().insert(*x);
+        } else {
+            row_beacons.insert(*row, HashSet::from([*x]));
+        }
+    }
+
+    for row in 0..=4000000 {
+        let invalid_ranges_in_row = get_invalid_ranges_in_row(row, &map);
+
+        match &invalid_ranges_in_row[..] {
+            // the whole row is invalid
+            [_] => continue,
+
+            // the row has one valid position (which may be a good beacon)
+            [(_, left), (right, _)] if *right == left + 2 => {
+                let x = left + 1;
+
+                // skip if the valid position is a good beacon
+                if let Some(beacons) = row_beacons.get(&row) {
+                    if beacons.contains(&x) {
+                        continue;
+                    }
+                }
+
+                println!("{x}, {row}, {}", x * 4000000 + row);
+                break;
+            }
+
+            // I did something wrong lol
+            ranges => panic!("A row has weird ranges: {ranges:?}"),
+        }
+    }
 
     Ok(())
 }
