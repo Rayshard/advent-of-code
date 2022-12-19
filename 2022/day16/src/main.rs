@@ -24,7 +24,7 @@ impl GraphTrait for Graph {
 fn calculate(
     start_valve: &String,
     graph: &Graph,
-    prv_pairs: &HashMap<(String, String), u64>,
+    prv_pairs: &HashMap<(String, String), i64>,
     pressure_releasing_valves_to_visit: &HashSet<String>,
     minutes_remaining: i64,
 ) -> i64 {
@@ -59,7 +59,7 @@ fn calculate(
     max
 }
 
-fn search(valve: &String, graph: &Graph, seen: &mut HashMap<String, u64>, step: u64) {
+fn search(valve: &String, graph: &Graph, seen: &mut HashMap<String, i64>, step: i64) {
     for connecting_valve in graph.get_connecting_valves(valve) {
         if let Some(last_step) = seen.get(connecting_valve) {
             if step >= *last_step {
@@ -72,20 +72,15 @@ fn search(valve: &String, graph: &Graph, seen: &mut HashMap<String, u64>, step: 
     }
 }
 
-fn get_pairs(
-    graph: &Graph,
-    pressure_releasing_values: &HashSet<&String>,
-) -> HashMap<(String, String), u64> {
-    let mut result = HashMap::<(String, String), u64>::new();
+fn get_pairs(graph: &Graph) -> HashMap<(String, String), i64> {
+    let mut result = HashMap::<(String, String), i64>::new();
 
-    for valve in pressure_releasing_values {
-        let mut seen = HashMap::<String, u64>::new(); // a map from valve to how many steps it took to reach it
+    for valve in graph.keys() {
+        let mut seen = HashMap::<String, i64>::new(); // a map from valve to how many steps it took to reach it
         search(valve, graph, &mut seen, 1);
 
         for (child, num_steps) in seen {
-            if pressure_releasing_values.contains(&child) {
-                result.insert((valve.to_string(), child), num_steps);
-            }
+            result.insert((valve.to_string(), child), num_steps);
         }
     }
 
@@ -126,50 +121,37 @@ fn main() -> io::Result<()> {
         .filter_map(|(valve, (rate, _))| if rate != &0 { Some(valve) } else { None })
         .collect::<HashSet<_>>();
 
-    println!("Finding pairs");
-    let pairs = get_pairs(&graph, &pressure_releasing_values);
-    println!("Pairs found: {}", pairs.len());
+    let pairs = get_pairs(&graph);
 
-    let most_pressure = graph
-        .get_connecting_valves("AA")
+    let most_pressure = pairs
         .iter()
-        .filter_map(|valve| {
-            if graph.get_rate(valve) != 0 {
-                Some(valve)
+        .filter_map(|((from, to), required_minutes)| {
+            if from == "AA" && pressure_releasing_values.contains(to) {
+                let valve = to;
+                let remaining_prv_to_visit = pressure_releasing_values
+                    .difference(&HashSet::from([valve]))
+                    .map(|prv| prv.to_string())
+                    .collect::<HashSet<_>>();
+
+                let minutes_remaining = 30 - required_minutes - 1;
+                Some(
+                    graph.get_rate(valve) * minutes_remaining
+                        + calculate(
+                            valve,
+                            &graph,
+                            &pairs,
+                            &remaining_prv_to_visit,
+                            minutes_remaining,
+                        ),
+                )
             } else {
                 None
             }
-        })
-        .map(|valve| {
-            let remaining_prv_to_visit = pressure_releasing_values
-                .difference(&HashSet::from([valve]))
-                .map(|prv| prv.to_string())
-                .collect::<HashSet<_>>();
-
-            graph.get_rate(valve) * 28
-                + calculate(valve, &graph, &pairs, &remaining_prv_to_visit, 28)
         })
         .max()
         .unwrap();
 
     println!("{most_pressure}");
-
-    // let start_valve = "AA".to_string();
-    // let most_pressure = {
-    //     graph.get_rate(&start_valve) * 29
-    //         + calculate(
-    //             &start_valve,
-    //             &graph,
-    //             &pairs,
-    //             &pressure_releasing_values
-    //                 .difference(&HashSet::from([&start_valve]))
-    //                 .map(|prv| prv.to_string())
-    //                 .collect::<HashSet<_>>(),
-    //             28,
-    //         )
-    // };
-
-    //println!("{most_pressure}");
 
     Ok(())
 }
