@@ -4,6 +4,8 @@ use std::{
     io::{self, BufRead, BufReader},
 };
 
+use itertools::Itertools;
+
 type Graph = HashMap<String, (i64, Vec<String>)>;
 
 trait GraphTrait {
@@ -24,36 +26,93 @@ impl GraphTrait for Graph {
 fn calculate(
     start_valve: &String,
     graph: &Graph,
-    prv_pairs: &HashMap<(String, String), i64>,
-    pressure_releasing_valves_to_visit: &HashSet<String>,
+    pairs: &HashMap<(String, String), i64>,
+    pressure_releasing_valves_to_visit: &HashSet<&&String>,
     minutes_remaining: i64,
+    current_pressure_to_be_released: i64,
 ) -> i64 {
     let mut max = 0i64;
 
     for prv in pressure_releasing_valves_to_visit {
-        let required_minutes_to_open = (prv_pairs
-            .get(&(start_valve.clone(), prv.to_string()))
-            .unwrap()
-            + 1) as i64;
+        let required_minutes_to_open =
+            (pairs.get(&(start_valve.clone(), prv.to_string())).unwrap() + 1) as i64;
         if required_minutes_to_open >= minutes_remaining {
             continue;
         }
 
         let num_minutes_releasing = minutes_remaining - required_minutes_to_open;
+        let prv_as_set = HashSet::from([*prv]);
         let new_prv_to_visit = pressure_releasing_valves_to_visit
-            .difference(&HashSet::from([prv.clone()]))
-            .map(|prv| prv.clone())
+            .difference(&prv_as_set)
+            .map(|prv| *prv)
             .collect::<HashSet<_>>();
-        max = max.max(
-            num_minutes_releasing * graph.get_rate(prv)
-                + calculate(
-                    prv,
-                    graph,
-                    prv_pairs,
-                    &new_prv_to_visit,
-                    num_minutes_releasing,
-                ),
-        );
+
+        max = max.max(calculate(
+            prv,
+            graph,
+            pairs,
+            &new_prv_to_visit,
+            num_minutes_releasing,
+            num_minutes_releasing * graph.get_rate(prv),
+        ));
+    }
+
+    current_pressure_to_be_released + max
+}
+
+fn calculate_part1(
+    graph: &Graph,
+    pairs: &HashMap<(String, String), i64>,
+    pressure_releasing_values: &HashSet<&String>,
+    num_minutes_to_complete: i64,
+) -> i64 {
+    pairs
+        .iter()
+        .filter_map(|((from, to), required_minutes)| {
+            if from == "AA" && pressure_releasing_values.contains(to) {
+                let valve = to;
+                let valve_as_set = HashSet::from([valve]);
+                let remaining_prv_to_visit = pressure_releasing_values
+                    .difference(&valve_as_set)
+                    .collect::<HashSet<_>>();
+
+                let minutes_remaining = num_minutes_to_complete - required_minutes - 1;
+                Some(calculate(
+                    valve,
+                    &graph,
+                    &pairs,
+                    &remaining_prv_to_visit,
+                    minutes_remaining,
+                    graph.get_rate(valve) * minutes_remaining,
+                ))
+            } else {
+                None
+            }
+        })
+        .max()
+        .unwrap()
+}
+
+fn calculate_part2(
+    graph: &Graph,
+    pairs: &HashMap<(String, String), i64>,
+    pressure_releasing_valves: &HashSet<&String>,
+) -> i64 {
+    let mut max = 0i64;
+
+    for length in 1..=(pressure_releasing_valves.len() / 2) {
+        for elephant_valves in pressure_releasing_valves.iter().combinations(length) {
+            let elephant_valves = HashSet::from_iter(elephant_valves.iter().map(|prv| **prv));
+            let elephant_best = calculate_part1(graph, pairs, &elephant_valves, 26);
+
+            let my_valves = pressure_releasing_valves
+                .difference(&elephant_valves)
+                .map(|prv| *prv)
+                .collect::<HashSet<_>>();
+            let my_best = calculate_part1(graph, pairs, &my_valves, 26);
+
+            max = max.max(elephant_best + my_best);
+        }
     }
 
     max
@@ -116,42 +175,21 @@ fn main() -> io::Result<()> {
         })
         .collect::<HashMap<_, _>>();
 
+    let pairs = get_pairs(&graph);
     let pressure_releasing_values = graph
         .iter()
         .filter_map(|(valve, (rate, _))| if rate != &0 { Some(valve) } else { None })
         .collect::<HashSet<_>>();
 
-    let pairs = get_pairs(&graph);
+    println!(
+        "{}",
+        calculate_part1(&graph, &pairs, &pressure_releasing_values, 30)
+    );
 
-    let most_pressure = pairs
-        .iter()
-        .filter_map(|((from, to), required_minutes)| {
-            if from == "AA" && pressure_releasing_values.contains(to) {
-                let valve = to;
-                let remaining_prv_to_visit = pressure_releasing_values
-                    .difference(&HashSet::from([valve]))
-                    .map(|prv| prv.to_string())
-                    .collect::<HashSet<_>>();
-
-                let minutes_remaining = 30 - required_minutes - 1;
-                Some(
-                    graph.get_rate(valve) * minutes_remaining
-                        + calculate(
-                            valve,
-                            &graph,
-                            &pairs,
-                            &remaining_prv_to_visit,
-                            minutes_remaining,
-                        ),
-                )
-            } else {
-                None
-            }
-        })
-        .max()
-        .unwrap();
-
-    println!("{most_pressure}");
+    println!(
+        "{}",
+        calculate_part2(&graph, &pairs, &pressure_releasing_values)
+    );
 
     Ok(())
 }
