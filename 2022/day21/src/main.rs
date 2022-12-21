@@ -4,7 +4,7 @@ use std::{
     io::{self, BufRead, BufReader},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 enum Operation {
     Add,
     Sub,
@@ -97,15 +97,28 @@ fn main() -> io::Result<()> {
                         unresolved.push_front(untouched.remove_entry(right_name).unwrap());
                     }
                     (None, Some(value)) => {
-                        unresolved.push_front((front_name, Job::NameOpValue(left_name, op, value)));
+                        unresolved.push_front((
+                            front_name,
+                            Job::NameOpValue(left_name.to_string(), *op, *value),
+                        ));
+                        unresolved.push_front(untouched.remove_entry(left_name).unwrap());
+                    }
+                    (Some(value), None) => {
+                        unresolved.push_front((
+                            front_name,
+                            Job::ValueOpName(*value, *op, left_name.to_string()),
+                        ));
                         unresolved.push_front(untouched.remove_entry(left_name).unwrap());
                     },
-                    (Some(_), None) => todo!(),
-                    (Some(_), Some(_)) => todo!(),
+                    (Some(left_value), Some(right_value)) => {
+                        resolved.insert(front_name, op.perform(*left_value, *right_value));
+                    }
                 }
             }
         }
     }
+
+    println!("{}", resolved.get("root").unwrap());
 
     Ok(())
 }
