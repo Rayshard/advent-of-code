@@ -13,6 +13,10 @@ struct Blueprint {
 }
 
 fn determine_max_number_geodes(blueprint: &Blueprint) -> u64 {
+    // You have 1 ore collecting robot max, so every minute you get 1 ore.
+    // You can only construct one thing at a time (when you have the necessary resources)
+    
+    
     todo!()
 }
 
