@@ -25,7 +25,40 @@ enum Direction {
     Right,
 }
 
-type Map = Vec<(i64, Vec<Tile>)>;
+struct Map {
+    tiles: HashMap<(i64, i64), Tile>,
+    num_rows: usize,
+    num_columns: usize,
+    start: (i64, i64),
+}
+impl Map {
+    pub fn new(rows: Vec<(i64, Vec<Tile>)>) -> Map {
+        let start = (rows[0].0, 0);
+        let num_rows = rows.len();
+        let num_columns = rows
+            .iter()
+            .map(|(row_start, row_tiles)| *row_start as usize + row_tiles.len())
+            .max()
+            .unwrap();
+        let tiles =
+            rows.iter()
+                .enumerate()
+                .flat_map(|(y, (x_start, row_tiles))| {
+                    row_tiles.iter().enumerate().map(move |(i_row, tile)| {
+                        ((x_start + i_row as i64, y as i64), tile.clone())
+                    })
+                })
+                .collect();
+
+        Map {
+            tiles,
+            num_rows,
+            num_columns,
+            start,
+        }
+    }
+}
+
 type Path = Vec<Movement>;
 
 impl Direction {
@@ -48,37 +81,15 @@ impl Direction {
     }
 }
 
-fn get_tile((x, y): (i64, i64), map: &Vec<(i64, Vec<Tile>)>) -> (Tile, (i64, i64)) {
-    let y = if y < 0 {
-        map.len() as i64 + y % map.len() as i64
-    } else {
-        y % map.len() as i64
-    } as usize;
-
-    let (row_start, row_tiles) = &map[y];
-
-    let row_length = row_start + row_tiles.len() as i64;
-    let x = if x < 0 {
-        row_length + x % row_length
-    } else {
-        x % row_length
-    } as usize
-        % row_tiles.len();
-
-    (row_tiles[x].clone(), (row_start + x as i64, y as i64))
-}
-
 fn parse_map_and_path(reader: &mut BufReader<File>) -> io::Result<(Map, Path)> {
-    let mut map = Vec::<(i64, Vec<Tile>)>::new();
-    let mut path = Vec::<Movement>::new();
-
-    loop {
+    let mut rows = Vec::<(i64, Vec<Tile>)>::new();
+    let path = loop {
         let mut line = String::new();
 
         if reader.read_line(&mut line).unwrap() == 1 {
             reader.read_line(&mut line)?;
 
-            path = line
+            break line
                 .trim_start()
                 .chars()
                 .flat_map(|c| {
@@ -96,8 +107,6 @@ fn parse_map_and_path(reader: &mut BufReader<File>) -> io::Result<(Map, Path)> {
                     s => Movement::Walk(s.parse().unwrap()),
                 })
                 .collect();
-
-            break;
         } else {
             let row = line
                 .chars()
@@ -109,31 +118,52 @@ fn parse_map_and_path(reader: &mut BufReader<File>) -> io::Result<(Map, Path)> {
                 })
                 .collect::<Vec<_>>();
 
-            map.push((row[0].0, row.iter().map(|(_, tile)| tile.clone()).collect()));
+            rows.push((row[0].0, row.iter().map(|(_, tile)| tile.clone()).collect()));
         }
-    }
+    };
 
-    Ok((map, path))
+    Ok((Map::new(rows), path))
 }
 
 fn move_in_dir((x, y): (i64, i64), dir: &Direction, map: &Map) -> Option<(i64, i64)> {
-    let target = match dir {
+    let target_pos = match dir {
         Direction::Up => (x, y - 1),
         Direction::Down => (x, y + 1),
         Direction::Left => (x - 1, y),
         Direction::Right => (x + 1, y),
     };
 
-    match get_tile(target, &map) {
-        (Tile::Open, target) => Some(target),
-        (Tile::Wall, _) => None,
+    let (target_pos, target_tile) = if let Some(tile) = map.tiles.get(&target_pos) {
+        (&target_pos, tile)
+    } else {
+        match dir {
+            Direction::Up => (0..map.num_rows)
+                .rev()
+                .find_map(|row| map.tiles.get_key_value(&(target_pos.0, row as i64)))
+                .unwrap(),
+            Direction::Down => (0..map.num_rows)
+                .find_map(|row| map.tiles.get_key_value(&(target_pos.0, row as i64)))
+                .unwrap(),
+            Direction::Left => (0..map.num_columns)
+                .rev()
+                .find_map(|column| map.tiles.get_key_value(&(column as i64, target_pos.1)))
+                .unwrap(),
+            Direction::Right => (0..map.num_columns)
+                .find_map(|column| map.tiles.get_key_value(&(column as i64, target_pos.1)))
+                .unwrap(),
+        }
+    };
+
+    match target_tile {
+        Tile::Open => Some(*target_pos),
+        Tile::Wall => None,
     }
 }
 
 fn trace(path: &Path, map: &Map) -> ((i64, i64), Direction) {
-    let (mut position, mut direction) = ((map[0].0, 0), Direction::Right);
+    let (mut position, mut direction) = (map.start, Direction::Right);
 
-    println!("{:?}", position);
+    //println!("{:?}", position);
 
     for action in path {
         match action {
@@ -142,7 +172,7 @@ fn trace(path: &Path, map: &Map) -> ((i64, i64), Direction) {
                     match move_in_dir(position, &direction, &map) {
                         Some(new_pos) => {
                             position = new_pos;
-                            println!("{:?}", position);
+                            //println!("{:?}", position);
                         }
                         None => break,
                     }
@@ -162,6 +192,15 @@ fn main() -> io::Result<()> {
 
     let (map, path) = parse_map_and_path(&mut reader)?;
 
-    println!("{:?}", trace(&path, &map));
+    // Part 1
+    let ((column, row), direction) = trace(&path, &map);
+    let direction_value = match direction {
+        Direction::Up => 3,
+        Direction::Down => 1,
+        Direction::Left => 2,
+        Direction::Right => 0,
+    };
+
+    println!("{}", 1000 * (row + 1) + 4 * (column + 1) + direction_value);
     Ok(())
 }
