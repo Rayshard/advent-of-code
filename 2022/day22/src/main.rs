@@ -33,9 +33,7 @@ struct Map {
 }
 
 impl Map {
-    pub fn new(
-        rows: Vec<(i64, Vec<Tile>)>,
-    ) -> Map {
+    pub fn new(rows: Vec<(i64, Vec<Tile>)>) -> Map {
         let start = (rows[0].0, 0);
         let num_rows = rows.len();
         let num_columns = rows
@@ -159,10 +157,52 @@ fn part2_void_tile_mapper(
     dir: &Direction,
     _: &Map,
 ) -> ((i64, i64), Direction) {
+    println!("{:?}", (target_column, target_row, dir));
+
     match (target_column, target_row, dir) {
-        (12, 5, Direction::Right) => ((14, 8), Direction::Down),
-        (10, 12, Direction::Down) => ((1, 7), Direction::Up),
-        (6, 3, Direction::Up) => ((8, 2), Direction::Right),
+        (col, row, Direction::Up) if row == -1 && col >= 50 && col <= 99 => {
+            ((0, 150 + col - 50), Direction::Right)
+        }
+        (col, row, Direction::Left) if col == -1 && row >= 150 && row <= 199 => {
+            ((50 + row - 150, 0), Direction::Down)
+        }
+        (col, row, Direction::Up) if row == -1 && col >= 100 && col <= 149 => {
+            ((col - 100, 199), Direction::Up)
+        }
+        (col, row, Direction::Down) if row == 200 && col >= 0 && col <= 49 => {
+            ((100 + col, 0), Direction::Down)
+        }
+        (col, row, Direction::Right) if col == 150 && row >= 0 && row <= 49 => {
+            ((99, 149 - row), Direction::Left)
+        }
+        (col, row, Direction::Right) if col == 100 && row >= 100 && row <= 149 => {
+            ((149, 149 - row), Direction::Left)
+        }
+        (col, row, Direction::Down) if row == 50 && col >= 100 && col <= 149 => {
+            ((99, 50 + col - 100), Direction::Left)
+        }
+        (col, row, Direction::Right) if col == 100 && row >= 50 && row <= 99 => {
+            ((100 + row - 50, 49), Direction::Up)
+        }
+        (col, row, Direction::Left) if col == 49 && row >= 0 && row <= 49 => {
+            ((0, 149 - row), Direction::Right)
+        }
+        (col, row, Direction::Left) if col == -1 && row >= 100 && row <= 149 => {
+            ((50, 149 - row), Direction::Right)
+        }
+        (col, row, Direction::Left) if col == 49 && row >= 50 && row <= 99 => {
+            ((row - 50, 100), Direction::Down)
+        }
+        (col, row, Direction::Up) if row == 99 && col >= 0 && col <= 49 => {
+            ((50, col + 50), Direction::Right)
+        }
+
+        (col, row, Direction::Down) if row == 150 && col >= 50 && col <= 99 => {
+            ((49, 150 + col - 50), Direction::Left)
+        }
+        (col, row, Direction::Right) if col == 50 && row >= 150 && row <= 199 => {
+            ((50 + row - 150, 149), Direction::Up)
+        }
         config => panic!("{config:?}"),
     }
 }
@@ -186,16 +226,15 @@ fn move_in_dir(
         void_tile_mapper(target_pos, dir, &map)
     };
 
-    match map.tiles.get(&target_pos).unwrap() {
-        Tile::Open => Some((target_pos, new_dir)),
-        Tile::Wall => None,
+    match map.tiles.get(&target_pos) {
+        Some(Tile::Open) => Some((target_pos, new_dir)),
+        Some(Tile::Wall) => None,
+        None => panic!("{target_pos:?}"),
     }
 }
 
 fn trace(path: &Path, map: &Map, void_tile_mapper: VoidTileMapper) -> i64 {
     let (mut position, mut direction) = (map.start, Direction::Right);
-
-    //println!("{:?}", position);
 
     for action in path {
         match action {
@@ -205,7 +244,6 @@ fn trace(path: &Path, map: &Map, void_tile_mapper: VoidTileMapper) -> i64 {
                         Some((new_pos, new_dir)) => {
                             position = new_pos;
                             direction = new_dir;
-                            //println!("{:?}", position);
                         }
                         None => break,
                     }
@@ -231,7 +269,7 @@ fn main() -> io::Result<()> {
     let mut reader = BufReader::new(file);
 
     let (map, path) = parse_rows_and_path(&mut reader)?;
-    
+
     println!("{}", trace(&path, &map, part1_void_tile_mapper));
     println!("{}", trace(&path, &map, part2_void_tile_mapper));
 
