@@ -17,7 +17,7 @@ enum Movement {
     RotateCounterClockwise,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Direction {
     Up,
     Down,
@@ -31,8 +31,11 @@ struct Map {
     num_columns: usize,
     start: (i64, i64),
 }
+
 impl Map {
-    pub fn new(rows: Vec<(i64, Vec<Tile>)>) -> Map {
+    pub fn new(
+        rows: Vec<(i64, Vec<Tile>)>,
+    ) -> Map {
         let start = (rows[0].0, 0);
         let num_rows = rows.len();
         let num_columns = rows
@@ -81,7 +84,7 @@ impl Direction {
     }
 }
 
-fn parse_map_and_path(reader: &mut BufReader<File>) -> io::Result<(Map, Path)> {
+fn parse_rows_and_path(reader: &mut BufReader<File>) -> io::Result<(Map, Path)> {
     let mut rows = Vec::<(i64, Vec<Tile>)>::new();
     let path = loop {
         let mut line = String::new();
@@ -125,7 +128,51 @@ fn parse_map_and_path(reader: &mut BufReader<File>) -> io::Result<(Map, Path)> {
     Ok((Map::new(rows), path))
 }
 
-fn move_in_dir((x, y): (i64, i64), dir: &Direction, map: &Map) -> Option<(i64, i64)> {
+type VoidTileMapper = fn((i64, i64), &Direction, &Map) -> ((i64, i64), Direction);
+
+fn part1_void_tile_mapper(
+    (target_column, target_row): (i64, i64),
+    dir: &Direction,
+    map: &Map,
+) -> ((i64, i64), Direction) {
+    let pos = match dir {
+        Direction::Up => (0..map.num_rows)
+            .rev()
+            .find_map(|row| map.tiles.get_key_value(&(target_column, row as i64))),
+        Direction::Down => {
+            (0..map.num_rows).find_map(|row| map.tiles.get_key_value(&(target_column, row as i64)))
+        }
+        Direction::Left => (0..map.num_columns)
+            .rev()
+            .find_map(|column| map.tiles.get_key_value(&(column as i64, target_row))),
+        Direction::Right => (0..map.num_columns)
+            .find_map(|column| map.tiles.get_key_value(&(column as i64, target_row))),
+    }
+    .unwrap()
+    .0;
+
+    (*pos, dir.clone())
+}
+
+fn part2_void_tile_mapper(
+    (target_column, target_row): (i64, i64),
+    dir: &Direction,
+    _: &Map,
+) -> ((i64, i64), Direction) {
+    match (target_column, target_row, dir) {
+        (12, 5, Direction::Right) => ((14, 8), Direction::Down),
+        (10, 12, Direction::Down) => ((1, 7), Direction::Up),
+        (6, 3, Direction::Up) => ((8, 2), Direction::Right),
+        config => panic!("{config:?}"),
+    }
+}
+
+fn move_in_dir(
+    (x, y): (i64, i64),
+    dir: &Direction,
+    map: &Map,
+    void_tile_mapper: VoidTileMapper,
+) -> Option<((i64, i64), Direction)> {
     let target_pos = match dir {
         Direction::Up => (x, y - 1),
         Direction::Down => (x, y + 1),
@@ -133,34 +180,19 @@ fn move_in_dir((x, y): (i64, i64), dir: &Direction, map: &Map) -> Option<(i64, i
         Direction::Right => (x + 1, y),
     };
 
-    let (target_pos, target_tile) = if let Some(tile) = map.tiles.get(&target_pos) {
-        (&target_pos, tile)
+    let (target_pos, new_dir) = if map.tiles.contains_key(&target_pos) {
+        (target_pos, dir.clone())
     } else {
-        match dir {
-            Direction::Up => (0..map.num_rows)
-                .rev()
-                .find_map(|row| map.tiles.get_key_value(&(target_pos.0, row as i64)))
-                .unwrap(),
-            Direction::Down => (0..map.num_rows)
-                .find_map(|row| map.tiles.get_key_value(&(target_pos.0, row as i64)))
-                .unwrap(),
-            Direction::Left => (0..map.num_columns)
-                .rev()
-                .find_map(|column| map.tiles.get_key_value(&(column as i64, target_pos.1)))
-                .unwrap(),
-            Direction::Right => (0..map.num_columns)
-                .find_map(|column| map.tiles.get_key_value(&(column as i64, target_pos.1)))
-                .unwrap(),
-        }
+        void_tile_mapper(target_pos, dir, &map)
     };
 
-    match target_tile {
-        Tile::Open => Some(*target_pos),
+    match map.tiles.get(&target_pos).unwrap() {
+        Tile::Open => Some((target_pos, new_dir)),
         Tile::Wall => None,
     }
 }
 
-fn trace(path: &Path, map: &Map) -> ((i64, i64), Direction) {
+fn trace(path: &Path, map: &Map, void_tile_mapper: VoidTileMapper) -> i64 {
     let (mut position, mut direction) = (map.start, Direction::Right);
 
     //println!("{:?}", position);
@@ -169,9 +201,10 @@ fn trace(path: &Path, map: &Map) -> ((i64, i64), Direction) {
         match action {
             Movement::Walk(amount) => {
                 for _ in 1..=*amount {
-                    match move_in_dir(position, &direction, &map) {
-                        Some(new_pos) => {
+                    match move_in_dir(position, &direction, &map, void_tile_mapper) {
+                        Some((new_pos, new_dir)) => {
                             position = new_pos;
+                            direction = new_dir;
                             //println!("{:?}", position);
                         }
                         None => break,
@@ -183,17 +216,6 @@ fn trace(path: &Path, map: &Map) -> ((i64, i64), Direction) {
         }
     }
 
-    (position, direction)
-}
-
-fn main() -> io::Result<()> {
-    let file = File::open("input.txt")?;
-    let mut reader = BufReader::new(file);
-
-    let (map, path) = parse_map_and_path(&mut reader)?;
-
-    // Part 1
-    let ((column, row), direction) = trace(&path, &map);
     let direction_value = match direction {
         Direction::Up => 3,
         Direction::Down => 1,
@@ -201,6 +223,17 @@ fn main() -> io::Result<()> {
         Direction::Right => 0,
     };
 
-    println!("{}", 1000 * (row + 1) + 4 * (column + 1) + direction_value);
+    1000 * (position.1 + 1) + 4 * (position.0 + 1) + direction_value
+}
+
+fn main() -> io::Result<()> {
+    let file = File::open("input.txt")?;
+    let mut reader = BufReader::new(file);
+
+    let (map, path) = parse_rows_and_path(&mut reader)?;
+    
+    println!("{}", trace(&path, &map, part1_void_tile_mapper));
+    println!("{}", trace(&path, &map, part2_void_tile_mapper));
+
     Ok(())
 }
