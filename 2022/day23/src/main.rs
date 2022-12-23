@@ -39,7 +39,10 @@ static DIRECTION_PROPSITION_ORDER: &'static [(Direction, Direction, Direction)] 
     (Direction::E, Direction::NE, Direction::SE),
 ];
 
-fn do_round(elves: HashSet<Position>, round: usize) -> (HashSet<Position>, (i64, i64), (i64, i64)) {
+fn do_round(
+    elves: HashSet<Position>,
+    round: usize,
+) -> (HashSet<Position>, (i64, i64), (i64, i64), usize) {
     let mut result = HashSet::<Position>::new();
     let ((mut min_x, mut min_y), (mut max_x, mut max_y)) =
         (elves.iter().next().unwrap(), elves.iter().next().unwrap());
@@ -112,16 +115,22 @@ fn do_round(elves: HashSet<Position>, round: usize) -> (HashSet<Position>, (i64,
         }
     }
 
+    let mut num_elves_moved = 0;
+
     for (proposition, proposing_elves) in propositions {
         match &proposing_elves[..] {
-            [_] => add_elf(
-                proposition,
-                &mut result,
-                &mut min_x,
-                &mut min_y,
-                &mut max_x,
-                &mut max_y,
-            ),
+            [_] => {
+                add_elf(
+                    proposition,
+                    &mut result,
+                    &mut min_x,
+                    &mut min_y,
+                    &mut max_x,
+                    &mut max_y,
+                );
+
+                num_elves_moved += 1;
+            }
             elves => elves.iter().for_each(|elf| {
                 add_elf(
                     *elf,
@@ -135,7 +144,7 @@ fn do_round(elves: HashSet<Position>, round: usize) -> (HashSet<Position>, (i64,
         }
     }
 
-    (result, (min_x, min_y), (max_x, max_y))
+    (result, (min_x, min_y), (max_x, max_y), num_elves_moved)
 }
 
 fn get_empty_tiles(
@@ -186,16 +195,24 @@ fn main() -> io::Result<()> {
         })
         .collect::<HashSet<_>>();
 
-    let (mut min_x, mut min_y, mut max_x, mut max_y) = (0, 0, 0, 0);
+    let (mut min_x, mut min_y, mut max_x, mut max_y);
+    let mut round = 1;
 
-    for round in 1usize..=10 {
-        (elves, (min_x, min_y), (max_x, max_y)) = do_round(elves, round);
-        // println!("=========After round {round}");
-        // print_elves(&elves, min_x, min_y, max_x, max_y);
-        // println!("============================");
+    loop {
+        let num_elves_moved;
+        (elves, (min_x, min_y), (max_x, max_y), num_elves_moved) = do_round(elves, round);
+
+        if round == 10 {
+            println!("{}", get_empty_tiles(&elves, min_x, min_y, max_x, max_y));
+        }
+        
+        if num_elves_moved == 0 {
+            println!("{round}");
+            break;
+        }
+
+        round += 1;
     }
-
-    println!("{}", get_empty_tiles(&elves, min_x, min_y, max_x, max_y));
 
     Ok(())
 }
