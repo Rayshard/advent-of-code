@@ -157,8 +157,6 @@ fn part2_void_tile_mapper(
     dir: &Direction,
     _: &Map,
 ) -> ((i64, i64), Direction) {
-    println!("{:?}", (target_column, target_row, dir));
-
     match (target_column, target_row, dir) {
         (col, row, Direction::Up) if row == -1 && col >= 50 && col <= 99 => {
             ((0, 150 + col - 50), Direction::Right)
