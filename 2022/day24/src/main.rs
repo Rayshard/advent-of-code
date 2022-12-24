@@ -36,7 +36,7 @@ fn get_target_position_wrapped(
     (min_x, min_y): &Position,
     (max_x, max_y): &Position,
 ) -> Position {
-    let (target_x, target_y) = match dir {
+    let (mut target_x, mut target_y) = match dir {
         Direction::Left => (x - 1, y),
         Direction::Right => (x + 1, y),
         Direction::Up => (x, y - 1),
@@ -44,16 +44,18 @@ fn get_target_position_wrapped(
     };
 
     if &target_x < min_x {
-        (*max_x, target_y)
+        target_x = *max_x;
     } else if &target_x > max_x {
-        (*min_x, target_y)
-    } else if &target_y < min_y {
-        (target_x, *max_y)
-    } else if &target_y > max_y {
-        (target_x, *min_y)
-    } else {
-        (target_x, target_y)
+        target_x = *min_x;
     }
+
+    if &target_y < min_y {
+        target_y = *max_y;
+    } else if &target_y > max_y {
+        target_y = *min_y;
+    }
+
+    (target_x, target_y)
 }
 
 fn update_map(old: Map, blizzard_max_position: &Position) -> Map {
@@ -112,10 +114,14 @@ fn possible_nexts(current_pos: &Position, map: &Map) -> Vec<Position> {
     .collect()
 }
 
-fn simulate(start: Position, end: Position, map: &Map) -> usize {
+fn simulate(
+    start: Position,
+    end: Position,
+    blizzard_max_position: Position,
+    map: &Map,
+) -> (usize, Map) {
     let mut players = HashSet::from([start]);
     let mut num_iterations = 0;
-    let blizzard_max_position = (end.0, end.1 - 1);
     let mut map = map.clone();
 
     loop {
@@ -129,7 +135,7 @@ fn simulate(start: Position, end: Position, map: &Map) -> usize {
             .flat_map(|player| possible_nexts(player, &map))
         {
             if player == end {
-                return num_iterations;
+                return (num_iterations, map);
             }
 
             new_players.insert(player);
@@ -179,8 +185,17 @@ fn main() -> io::Result<()> {
         .unwrap()
         .0
         .clone();
+    let blizzard_max_position = (end.0, end.1 - 1);
 
-    println!("{}", simulate(start, end, &map));
+    // Part 1
+    let (time1, map) = simulate(start, end, blizzard_max_position, &map);
+    println!("{time1}");
+
+    //// Part 2
+    let (time2, map) = simulate(end, start, blizzard_max_position, &map);
+    let (time3, _) = simulate(start, end, blizzard_max_position, &map);
+
+    println!("{}", time1 + time2 + time3);
 
     Ok(())
 }
