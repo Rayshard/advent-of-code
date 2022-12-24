@@ -4,7 +4,7 @@ use std::{
     io::{self, BufRead, BufReader},
 };
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 enum Direction {
     Left,
     Right,
@@ -12,38 +12,14 @@ enum Direction {
     Down,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 enum Tile {
     Empty,
     Blizzard(Vec<Direction>),
 }
 
 type Position = (i64, i64);
-
-#[derive(Clone, PartialEq, Eq)]
-struct Map {
-    tiles: HashMap<Position, Tile>,
-}
-
-impl Map {
-    pub fn new() -> Self {
-        Self {
-            tiles: HashMap::new(),
-        }
-    }
-}
-
-impl std::hash::Hash for Map {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        todo!()
-    }
-}
-
-#[derive(Hash, Eq, PartialEq)]
-struct State {
-    player: Position,
-    map: Map,
-}
+type Map = HashMap<Position, Tile>;
 
 fn get_target_position((x, y): Position, dir: Direction) -> Position {
     match dir {
@@ -80,15 +56,15 @@ fn get_target_position_wrapped(
     }
 }
 
-fn possible_nexts(state: &State, blizzard_max_position: &Position) -> Vec<State> {
+fn update_map(old: Map, blizzard_max_position: &Position) -> Map {
     let mut new_map = Map::new();
 
     // Generate new map
-    for (pos, tile) in &state.map.tiles {
+    for (pos, tile) in &old {
         match tile {
             Tile::Empty => {
-                if !new_map.tiles.contains_key(pos) {
-                    new_map.tiles.insert(*pos, Tile::Empty);
+                if !new_map.contains_key(pos) {
+                    new_map.insert(*pos, Tile::Empty);
                 }
             }
             Tile::Blizzard(dirs) => {
@@ -100,68 +76,66 @@ fn possible_nexts(state: &State, blizzard_max_position: &Position) -> Vec<State>
                         blizzard_max_position,
                     );
 
-                    match new_map.tiles.get_mut(&target_pos) {
+                    match new_map.get_mut(&target_pos) {
                         Some(Tile::Empty) | None => {
-                            new_map
-                                .tiles
-                                .insert(target_pos, Tile::Blizzard(vec![dir.clone()]));
-
-                            if !new_map.tiles.contains_key(pos) {
-                                new_map.tiles.insert(*pos, Tile::Empty);
-                            }
+                            new_map.insert(target_pos, Tile::Blizzard(vec![dir.clone()]));
                         }
                         Some(Tile::Blizzard(dirs)) => {
                             dirs.push(dir.clone());
                         }
                     };
+
+                    if !new_map.contains_key(pos) {
+                        new_map.insert(*pos, Tile::Empty);
+                    }
                 }
             }
         }
     }
 
-    // Get possible next positions
+    new_map
+}
+
+fn possible_nexts(current_pos: &Position, map: &Map) -> Vec<Position> {
     [
-        state.player.clone(),
-        get_target_position(state.player.clone(), Direction::Up),
-        get_target_position(state.player.clone(), Direction::Down),
-        get_target_position(state.player.clone(), Direction::Left),
-        get_target_position(state.player.clone(), Direction::Right),
+        current_pos.clone(),
+        get_target_position(current_pos.clone(), Direction::Up),
+        get_target_position(current_pos.clone(), Direction::Down),
+        get_target_position(current_pos.clone(), Direction::Left),
+        get_target_position(current_pos.clone(), Direction::Right),
     ]
     .iter()
-    .filter_map(|target_pos| match new_map.tiles.get(target_pos) {
-        Some(Tile::Empty) => Some(State {
-            player: target_pos.clone(),
-            map: new_map.clone(),
-        }),
+    .filter_map(|target_pos| match map.get(target_pos) {
+        Some(Tile::Empty) => Some(target_pos.clone()),
         Some(Tile::Blizzard(_)) | None => None,
     })
     .collect()
 }
 
-fn simulate(states: Vec<State>, end: Position) -> usize {
-    let mut states = states;
+fn simulate(start: Position, end: Position, map: &Map) -> usize {
+    let mut players = HashSet::from([start]);
     let mut num_iterations = 0;
     let blizzard_max_position = (end.0, end.1 - 1);
-
-    let seen_states = HashSet::<State>::new();
+    let mut map = map.clone();
 
     loop {
         num_iterations += 1;
 
-        let mut new_states = vec![];
+        let mut new_players = HashSet::new();
+        map = update_map(map, &blizzard_max_position);
 
-        for state in states
+        for player in players
             .iter()
-            .flat_map(|state| possible_nexts(state, &blizzard_max_position))
+            .flat_map(|player| possible_nexts(player, &map))
         {
-            if state.player == end {
+            if player == end {
                 return num_iterations;
-            } else if !seen_states.contains(&state) {
-                new_states.push(state);
             }
+
+            new_players.insert(player);
         }
 
-        states = new_states;
+        players = new_players;
     }
 }
 
@@ -169,7 +143,7 @@ fn main() -> io::Result<()> {
     let file = File::open("input.txt")?;
     let reader = BufReader::new(file);
 
-    let tiles = reader
+    let map = reader
         .lines()
         .enumerate()
         .flat_map(|(y, line)| {
@@ -193,20 +167,20 @@ fn main() -> io::Result<()> {
         })
         .collect::<HashMap<_, _>>();
 
-    let start = tiles
+    let start = map
         .iter()
         .min_by(|a, b| a.0 .1.cmp(&b.0 .1))
         .unwrap()
         .0
         .clone();
-    let end = tiles
+    let end = map
         .iter()
         .max_by(|a, b| a.0 .1.cmp(&b.0 .1))
         .unwrap()
         .0
         .clone();
 
-    println!("{}", simulate(vec![State { player: start, map: Map { tiles } }], end));
+    println!("{}", simulate(start, end, &map));
 
     Ok(())
 }
