@@ -2,18 +2,24 @@ from collections import defaultdict
 from io import TextIOWrapper
 
 
-def part1(file: TextIOWrapper) -> int:
-    result = 0
+def part1and2(file: TextIOWrapper) -> int:
+    part1_result = 0
+    total = defaultdict(int)
 
-    for line in file:
+    for i, line in enumerate(file):
+        total[i + 1] += 1
+
         count = len(set.intersection(*[set(int(number.strip()) for number in cards.split(" ") if number != "") for cards in line.split(": ", 1)[1].split(" | ")]))
 
         if count != 0:
-            result += 2**(count - 1)
+            part1_result += 2**(count - 1)
 
-    return result
+            for index in range(count):
+                total[i + 2 + index] += total[i + 1]
+
+    return part1_result, sum(total.values())
 
 
 if __name__ == "__main__":
     with open("input.txt") as file:
-        print(part1(file))
+        print(part1and2(file))
