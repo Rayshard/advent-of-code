@@ -26,9 +26,11 @@ Map = dict[Coord, int]
 def parse_map(file: TextIOWrapper) -> tuple[Map, Coord]:
     result = {}
     start = None
+    rows, cols = 0, 0
 
     for row, line in enumerate(file):
         for col, symbol in enumerate(line.strip()):
+            cols += 1
             if symbol == "S":
                 start = (col, row)
             else:
@@ -96,10 +98,65 @@ def longest_loop(map: Map, start: Coord) -> list[list[Coord]]:
     return result
 
 
-def part1(file: TextIOWrapper) -> int:
+def part1and2(file: TextIOWrapper) -> int:
     map, start = parse_map(file)
-    return (len(longest_loop(map, start))) // 2
+    loop = set(longest_loop(map, start))
+
+    remaining_tiles = set(map.keys()).difference(loop)
+    num_enclosed = 0
+    enclosed_counts = set()
+
+    while len(remaining_tiles) != 0:
+        current_flood = {remaining_tiles.pop()}
+        enclosed = True
+        to_check = set(current_flood)
+
+        while len(to_check) != 0:
+            col, row = to_check.pop()
+            adj = [
+                (col - 1, row),
+                (col + 1, row),
+                (col, row - 1),
+                (col, row + 1),
+            ]
+
+            for a in adj:
+                if a in loop:
+                    continue
+                elif a not in map:
+                    enclosed = False
+                    continue
+                elif a not in current_flood:
+                    to_check.add(a)
+                    current_flood.add(a)
+
+        if enclosed:
+            enclosed_counts.add(len(current_flood))
+            num_enclosed += len(current_flood)
+
+        remaining_tiles -= current_flood
+        
+    print(enclosed_counts)
+    row = 0
+    while (0, row) in map:
+        col = 0
+        line = ""
+        while (col, row) in map or (col, row) == start:
+            if (col, row) in loop:
+                line += "#"
+            else:
+                line += "."
+            
+            col += 1
+
+        print(line)
+        row += 1
+
+
+    return len(loop) // 2, num_enclosed
 
 if __name__ == "__main__":
     with open("input.txt") as file:
-        print(part1(file))
+        print(part1and2(file))
+
+    # 162 > x < 500
