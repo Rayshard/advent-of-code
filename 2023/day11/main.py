@@ -3,7 +3,7 @@ from io import TextIOWrapper
 
 Coord = tuple[int, int]
 
-def parse_map(file: TextIOWrapper) -> set[Coord]:
+def parse_map(file: TextIOWrapper, expansion_factor: int) -> set[Coord]:
     galaxies = set[Coord]()
     empty_columns = defaultdict(lambda: True)
     line_padding = 0
@@ -20,7 +20,7 @@ def parse_map(file: TextIOWrapper) -> set[Coord]:
                 empty_columns[col] = empty_columns[col] and True
             
         if empty_line:
-            line_padding += 1
+            line_padding += expansion_factor - 1
 
     empty_columns = {col for col, empty in empty_columns.items() if empty}
 
@@ -30,16 +30,15 @@ def parse_map(file: TextIOWrapper) -> set[Coord]:
         
         for col in empty_columns:
             if col < galaxy_col:
-                new_galaxy_col += 1
+                new_galaxy_col += expansion_factor - 1
 
         column_expanded_galaxies.add((galaxy_row, new_galaxy_col))
 
     return column_expanded_galaxies
 
 
-
-def part1and2(file: TextIOWrapper) -> int:
-    galaxies = parse_map(file)
+def calculate(file, expansion_factor: int) -> int:
+    galaxies = parse_map(file, expansion_factor)
     distances = dict[tuple[Coord, Coord], int]()
     
     for galaxy_a in galaxies:
@@ -54,4 +53,7 @@ def part1and2(file: TextIOWrapper) -> int:
 
 if __name__ == "__main__":
     with open("input.txt") as file:
-        print(part1and2(file))
+        print(calculate(file, expansion_factor=2))
+
+    with open("input.txt") as file:
+        print(calculate(file, expansion_factor=1000000))
