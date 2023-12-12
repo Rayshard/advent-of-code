@@ -9,6 +9,14 @@ class Direction(IntEnum):
     EAST = 0b0010
     WEST = 0b0001
 
+    NORTHEAST = 0b1010
+    NORTHSOUTH = 0b1100
+    NORTHWEST = 0b1001
+
+    SOUTHEAST = 0b0110
+    SOUTHWEST = 0b0101
+    
+
 
 SYMBOL_TO_PIPE_DIRS = {
     "|": Direction.NORTH | Direction.SOUTH,
@@ -19,6 +27,8 @@ SYMBOL_TO_PIPE_DIRS = {
     "F": Direction.SOUTH | Direction.EAST,
     ".": 0b0000,
 }
+
+PIPE_DIRS_TO_SYMBOLS = {dirs: symbol for symbol, dirs in SYMBOL_TO_PIPE_DIRS.items()}
 
 Coord = tuple[int, int]
 Map = dict[Coord, int]
@@ -68,7 +78,7 @@ def connecting_pipes(position: Coord, map: Map, start: Coord) -> list[Coord]:
     return connecting
 
 
-def longest_loop(map: Map, start: Coord) -> list[list[Coord]]:
+def longest_loop(map: Map, start: Coord) -> list[Coord]:
     result = None
     paths = [[start]]
     
@@ -95,21 +105,287 @@ def longest_loop(map: Map, start: Coord) -> list[list[Coord]]:
 
         paths = new_paths
 
-    return result
+    return result[:-1]
+
+
+def calculate_start(loop: list[Coord]) -> int:
+    start = loop[0]
+    adj_1 = (loop[-1][0] - start[0], loop[-1][1] - start[1])
+    adj_2 = (loop[1][0] - start[0], loop[1][1] - start[1])
+
+    match adj_1, adj_2:
+        case (1, 0), (0, 1):
+            return SYMBOL_TO_PIPE_DIRS["F"]
+        case (1, 0), (-1, 0):
+            return SYMBOL_TO_PIPE_DIRS["-"]
+        case (1, 0), (0, -1):
+            return SYMBOL_TO_PIPE_DIRS["L"]
+        case (0, 1), (-1, 0):
+            return SYMBOL_TO_PIPE_DIRS["7"]
+        case (0, 1), (0, -1):
+            return SYMBOL_TO_PIPE_DIRS["|"]
+        case (0, 1), (1, 0):
+            return SYMBOL_TO_PIPE_DIRS["F"]
+        case (-1, 0), (0, -1):
+            return SYMBOL_TO_PIPE_DIRS["J"]
+        case (-1, 0), (1, 0):
+            return SYMBOL_TO_PIPE_DIRS["-"]
+        case (-1, 0), (0, 1):
+            return SYMBOL_TO_PIPE_DIRS["7"]
+        case (0, -1), (1, 0):
+            return SYMBOL_TO_PIPE_DIRS["L"]
+        case (0, -1), (0, 1):
+            return SYMBOL_TO_PIPE_DIRS["|"]
+        case (0, -1), (-1, 0):
+            return SYMBOL_TO_PIPE_DIRS["J"]
+        case adj:
+            raise NotImplementedError(adj)
 
 
 def part1and2(file: TextIOWrapper) -> int:
     map, start = parse_map(file)
-    loop = set(longest_loop(map, start))
+    loop = longest_loop(map, start)
 
-    remaining_tiles = set(map.keys()).difference(loop)
-    num_enclosed = 0
-    enclosed_counts = set()
+    map[start] = calculate_start(loop)
 
-    while len(remaining_tiles) != 0:
-        current_flood = {remaining_tiles.pop()}
-        enclosed = True
-        to_check = set(current_flood)
+    min_pipe = min(loop)
+    min_pipe_index = loop.index(min_pipe)
+
+    pos_dir = Direction.SOUTHEAST
+    pos_coords = set[Coord]()
+    last_pipe_value = map[min_pipe]
+
+    #print(len(loop))
+    for i, pipe in enumerate(loop[min_pipe_index + 1:] + loop[:min_pipe_index]):
+        #print(i, pipe)
+        match pos_dir:
+            case Direction.NORTH:
+                if last_pipe_value == SYMBOL_TO_PIPE_DIRS["-"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_dir = Direction.NORTH
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["-"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["J"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.NORTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["-"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["7"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.NORTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["-"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["F"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.NORTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["-"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["L"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.NORTHEAST
+                else:
+                    raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
+            case Direction.SOUTH:
+                if last_pipe_value == SYMBOL_TO_PIPE_DIRS["-"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["L"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.SOUTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["-"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["F"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.SOUTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["-"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_dir = Direction.SOUTH
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["-"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["7"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.SOUTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["-"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["J"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.SOUTHEAST
+                else:
+                    raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
+            case Direction.EAST:
+                if last_pipe_value == SYMBOL_TO_PIPE_DIRS["|"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["|"]:
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.EAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["|"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["L"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.NORTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["|"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["J"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.SOUTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["|"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["F"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.SOUTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["|"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["7"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.NORTHEAST
+                else:
+                    raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
+            case Direction.WEST:
+                if last_pipe_value == SYMBOL_TO_PIPE_DIRS["|"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["|"]:
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.WEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["|"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["7"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.SOUTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["|"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["F"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.NORTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["|"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["L"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.SOUTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["|"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["J"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.NORTHWEST
+                else:
+                    raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
+            case Direction.SOUTHEAST:
+                if last_pipe_value == SYMBOL_TO_PIPE_DIRS["F"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["|"]:
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.EAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["J"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_dir = Direction.SOUTH
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["F"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["J"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.SOUTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["J"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["|"]:
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.EAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["F"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_dir = Direction.SOUTH
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["F"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["7"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.SOUTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["J"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["7"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.NORTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["F"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["L"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.NORTHEAST
+                else:
+                    raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
+            case Direction.SOUTHWEST:
+                if last_pipe_value == SYMBOL_TO_PIPE_DIRS["7"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_dir = Direction.SOUTH
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["L"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["|"]:
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.WEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["7"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["|"]:
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.WEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["L"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["J"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.SOUTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["7"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["J"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.NORTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["L"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["7"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.SOUTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["7"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["L"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.SOUTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["L"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_dir = Direction.SOUTH
+                else:
+                    raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
+            case Direction.NORTHEAST:
+                if last_pipe_value == SYMBOL_TO_PIPE_DIRS["L"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_dir = Direction.NORTH
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["7"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["|"]:
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.EAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["L"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["7"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.NORTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["7"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["L"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.NORTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["7"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_dir = Direction.NORTH
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["L"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["|"]:
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.EAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["7"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["F"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.NORTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["L"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["F"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.SOUTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["7"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["J"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.SOUTHEAST
+                else:
+                    raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
+            case Direction.NORTHWEST:
+                if last_pipe_value == SYMBOL_TO_PIPE_DIRS["J"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["|"]:
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.WEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["F"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_dir = Direction.NORTH
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["J"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["F"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.NORTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["F"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["L"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.SOUTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["J"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["L"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.NORTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["F"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["|"]:
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.WEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["F"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["J"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.NORTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["J"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_dir = Direction.NORTH
+                else:
+                    raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
+            case dir:
+                raise NotImplementedError(dir)
+            
+        last_pipe_value = map[pipe]
+
+    pos_coords = {coord for coord in pos_coords if coord in map and coord not in loop}
+    enclosed_tiles = set(pos_coords)
+    loop = set(loop)
+
+    while len(pos_coords) != 0:
+        to_check = {pos_coords.pop()}
 
         while len(to_check) != 0:
             col, row = to_check.pop()
@@ -124,39 +400,13 @@ def part1and2(file: TextIOWrapper) -> int:
                 if a in loop:
                     continue
                 elif a not in map:
-                    enclosed = False
-                    continue
-                elif a not in current_flood:
+                    assert False
+                elif a not in enclosed_tiles:
                     to_check.add(a)
-                    current_flood.add(a)
+                    enclosed_tiles.add(a)
 
-        if enclosed:
-            enclosed_counts.add(len(current_flood))
-            num_enclosed += len(current_flood)
-
-        remaining_tiles -= current_flood
-        
-    print(enclosed_counts)
-    row = 0
-    while (0, row) in map:
-        col = 0
-        line = ""
-        while (col, row) in map or (col, row) == start:
-            if (col, row) in loop:
-                line += "#"
-            else:
-                line += "."
-            
-            col += 1
-
-        print(line)
-        row += 1
-
-
-    return len(loop) // 2, num_enclosed
+    return len(loop) // 2, len(enclosed_tiles)
 
 if __name__ == "__main__":
     with open("input.txt") as file:
         print(part1and2(file))
-
-    # 162 > x < 500
