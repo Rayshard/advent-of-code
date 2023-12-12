@@ -142,12 +142,7 @@ def calculate_start(loop: list[Coord]) -> int:
             raise NotImplementedError(adj)
 
 
-def part1and2(file: TextIOWrapper) -> int:
-    map, start = parse_map(file)
-    loop = longest_loop(map, start)
-
-    map[start] = calculate_start(loop)
-
+def get_loop_positive_tiles(loop: list[Coord], map: Map) -> set[Coord]:
     min_pipe = min(loop)
     min_pipe_index = loop.index(min_pipe)
 
@@ -155,9 +150,7 @@ def part1and2(file: TextIOWrapper) -> int:
     pos_coords = set[Coord]()
     last_pipe_value = map[min_pipe]
 
-    #print(len(loop))
-    for i, pipe in enumerate(loop[min_pipe_index + 1:] + loop[:min_pipe_index]):
-        #print(i, pipe)
+    for pipe in loop[min_pipe_index + 1:] + loop[:min_pipe_index]:
         match pos_dir:
             case Direction.NORTH:
                 if last_pipe_value == SYMBOL_TO_PIPE_DIRS["-"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
@@ -276,6 +269,14 @@ def part1and2(file: TextIOWrapper) -> int:
                     pos_coords.add((pipe[0], pipe[1] - 1))
                     pos_coords.add((pipe[0] + 1, pipe[1]))
                     pos_dir = Direction.NORTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["J"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["F"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.SOUTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["J"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["L"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.SOUTHWEST
                 else:
                     raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
             case Direction.SOUTHWEST:
@@ -307,6 +308,14 @@ def part1and2(file: TextIOWrapper) -> int:
                 elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["L"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
                     pos_coords.add((pipe[0], pipe[1] + 1))
                     pos_dir = Direction.SOUTH
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["L"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["F"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.NORTHWEST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["7"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["F"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.SOUTHEAST
                 else:
                     raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
             case Direction.NORTHEAST:
@@ -342,6 +351,10 @@ def part1and2(file: TextIOWrapper) -> int:
                     pos_coords.add((pipe[0], pipe[1] + 1))
                     pos_coords.add((pipe[0] + 1, pipe[1]))
                     pos_dir = Direction.SOUTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["L"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["J"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.NORTHWEST
                 else:
                     raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
             case Direction.NORTHWEST:
@@ -373,6 +386,14 @@ def part1and2(file: TextIOWrapper) -> int:
                 elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["J"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["-"]:
                     pos_coords.add((pipe[0], pipe[1] - 1))
                     pos_dir = Direction.NORTH
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["F"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["7"]:
+                    pos_coords.add((pipe[0], pipe[1] - 1))
+                    pos_coords.add((pipe[0] + 1, pipe[1]))
+                    pos_dir = Direction.NORTHEAST
+                elif last_pipe_value == SYMBOL_TO_PIPE_DIRS["J"] and map[pipe] == SYMBOL_TO_PIPE_DIRS["7"]:
+                    pos_coords.add((pipe[0], pipe[1] + 1))
+                    pos_coords.add((pipe[0] - 1, pipe[1]))
+                    pos_dir = Direction.SOUTHWEST
                 else:
                     raise NotImplementedError((PIPE_DIRS_TO_SYMBOLS[last_pipe_value], PIPE_DIRS_TO_SYMBOLS[map[pipe]]))
             case dir:
@@ -380,7 +401,10 @@ def part1and2(file: TextIOWrapper) -> int:
             
         last_pipe_value = map[pipe]
 
-    pos_coords = {coord for coord in pos_coords if coord in map and coord not in loop}
+    return pos_coords
+
+def get_loop_num_enclosed_tiles(loop: list[Coord], map: Map) -> set[Coord]:
+    pos_coords = {coord for coord in get_loop_positive_tiles(loop, map) if coord in map and coord not in loop}
     enclosed_tiles = set(pos_coords)
     loop = set(loop)
 
@@ -405,7 +429,14 @@ def part1and2(file: TextIOWrapper) -> int:
                     to_check.add(a)
                     enclosed_tiles.add(a)
 
-    return len(loop) // 2, len(enclosed_tiles)
+    return len(enclosed_tiles)
+
+def part1and2(file: TextIOWrapper) -> int:
+    map, start = parse_map(file)
+    loop = longest_loop(map, start)
+    map[start] = calculate_start(loop)
+
+    return len(loop) // 2, get_loop_num_enclosed_tiles(loop, map)
 
 if __name__ == "__main__":
     with open("input.txt") as file:
