@@ -71,8 +71,8 @@ def part2(file: TextIOWrapper) -> int:
 
 
 if __name__ == "__main__":
-    # with open("input.txt") as file:
-    #     print(part1(file))
+    with open("input.txt") as file:
+        print(part1(file))
 
     with open("input.txt") as file:
         print(part2(file))
