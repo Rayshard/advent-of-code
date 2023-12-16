@@ -83,11 +83,11 @@ def move_beam(beam: Beam, map: dict[tuple[int, int], str]) -> list[Beam]:
             raise RuntimeError((tile, dir))
 
 
-def part1(file: TextIOWrapper) -> int:
-    map = parse_map(file)
+def find_num_energized_tiles(map: dict[tuple[int, int], str], initial_beam: Beam) -> int:
+    initial_beam_pos, _ = initial_beam
 
-    beams = {((0, 0), Direction.EAST)}
-    seen = {(0, 0)}
+    beams = {initial_beam}
+    seen = {initial_beam_pos}
     energized_tiles = set[tuple[int, int]]()
 
     while beams:
@@ -98,7 +98,7 @@ def part1(file: TextIOWrapper) -> int:
 
         if beam not in seen:
             seen.add(beam)
-            
+
             for new_beam in move_beam(beam, map):
                 new_beam_pos, _ = new_beam
                 if new_beam_pos in map:
@@ -108,7 +108,36 @@ def part1(file: TextIOWrapper) -> int:
     return len(energized_tiles)
 
 
+def part1(map: dict[tuple[int, int], str]) -> int:
+    return find_num_energized_tiles(map, ((0, 0), Direction.EAST))
+
+
+def part2(map: dict[tuple[int, int], str]) -> int:
+    num_rows, num_cols = max(map)
+
+    max_num_energized_tiles = 0
+
+    for row in range(num_rows):
+        max_num_energized_tiles = max(
+            max_num_energized_tiles,
+            find_num_energized_tiles(map, ((row, 0), Direction.EAST)),
+            find_num_energized_tiles(map, ((row, num_cols - 1), Direction.WEST))
+        )
+
+    for col in range(num_cols):
+        max_num_energized_tiles = max(
+            max_num_energized_tiles,
+            find_num_energized_tiles(map, ((0, col), Direction.SOUTH)),
+            find_num_energized_tiles(map, ((num_rows - 1, col), Direction.NORTH))
+        )
+
+    return max_num_energized_tiles
+
+
 if __name__ == "__main__":
     with open("input.txt") as file:
-        print(part1(file))
+        map = parse_map(file)
+        
+    print(part1(map))
+    print(part2(map))
 
