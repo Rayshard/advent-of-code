@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum, auto
 from io import TextIOWrapper
-from typing import Literal, Optional
+from typing import Optional
 
 
 Map = dict[tuple[int, int], int]
@@ -30,6 +30,7 @@ class Crucible:
     direction: Direction
     remaining_movements_in_direction: int
     heat_loss_total: int
+    is_ultra: bool = False
 
     def move_in_dir(self, map: Map) -> Optional["Crucible"]:
         if self.remaining_movements_in_direction <= 0:
@@ -54,20 +55,29 @@ class Crucible:
             position=new_pos,
             direction=self.direction,
             remaining_movements_in_direction=self.remaining_movements_in_direction - 1,
-            heat_loss_total=self.heat_loss_total + map[new_pos]
+            heat_loss_total=self.heat_loss_total + map[new_pos],
+            is_ultra=self.is_ultra,
         )
     
     def get_next_possiblities(self) -> list["Crucible"]:
+        if self.is_ultra:
+            if self.remaining_movements_in_direction > 6:
+                return []
+            
+            amt = 10
+        else:
+            amt = 3
+
         match self.direction:
             case Direction.UP | Direction.DOWN:
                 return [
-                    Crucible(self.position, Direction.LEFT, 3, self.heat_loss_total),
-                    Crucible(self.position, Direction.RIGHT, 3, self.heat_loss_total)
+                    Crucible(self.position, Direction.LEFT, amt, self.heat_loss_total, self.is_ultra),
+                    Crucible(self.position, Direction.RIGHT, amt, self.heat_loss_total, self.is_ultra)
                 ]
             case Direction.LEFT | Direction.RIGHT:
                 return [
-                    Crucible(self.position, Direction.UP, 3, self.heat_loss_total),
-                    Crucible(self.position, Direction.DOWN, 3, self.heat_loss_total)
+                    Crucible(self.position, Direction.UP, amt, self.heat_loss_total, self.is_ultra),
+                    Crucible(self.position, Direction.DOWN, amt, self.heat_loss_total, self.is_ultra)
                 ]
             case dir:
                 raise RuntimeError(dir)
@@ -114,9 +124,52 @@ def part1(map: Map) -> int:
     return minimum_heat_loss
 
 
+def part2(map: Map) -> int:
+    end = max(map)
+
+    crucibles = {
+        Crucible((0, 0), Direction.RIGHT, 9, 0, is_ultra=True),
+        Crucible((0, 0), Direction.DOWN, 9, 0, is_ultra=True),
+    }
+
+    seen : dict[tuple[tuple[int, int], Direction, int], int] = {}
+    minimum_heat_loss = None
+
+    while crucibles:
+        new_crucibles = set[Crucible]()
+
+        for crucible in crucibles:
+            if minimum_heat_loss is not None and crucible.heat_loss_total > minimum_heat_loss:
+                continue
+
+            if crucible.position not in map:
+                continue
+
+            if (seen_heat_loss := seen.get((crucible.position, crucible.direction, crucible.remaining_movements_in_direction))) is not None:
+                if crucible.heat_loss_total >= seen_heat_loss:
+                    continue
+
+            seen[(crucible.position, crucible.direction, crucible.remaining_movements_in_direction)] = crucible.heat_loss_total
+
+            if crucible.position == end and crucible.remaining_movements_in_direction <= 6 and (minimum_heat_loss is None or crucible.heat_loss_total < minimum_heat_loss):
+                minimum_heat_loss = crucible.heat_loss_total
+
+            if (new_crucible := crucible.move_in_dir(map)) is None:
+                continue
+
+            new_crucibles.add(new_crucible)
+            new_crucibles.update(new_crucible.get_next_possiblities())
+
+        crucibles = new_crucibles
+
+    return minimum_heat_loss
+
+
 if __name__ == "__main__":
     with open("input.txt") as file:
         map = parse_map(file)
 
     print(part1(map))
+    print(part2(map))
+
 
