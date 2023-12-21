@@ -10,8 +10,7 @@ def part1(file: TextIOWrapper) -> int:
     min_row, min_col, max_row, max_col = 0, 0, 0, 0
 
     for line in file:
-        line = line.strip()
-        dir, amt, color = line.split()
+        dir, amt, color = line.strip().split()
         amt = int(amt)
         color = color[2:-1]
 
@@ -89,6 +88,23 @@ def part1(file: TextIOWrapper) -> int:
     return len(interior_seen)
 
 
+def part2(file: TextIOWrapper) -> int:
+    position: Coord = (0, 0)
+    trench: set[Coord] = {position}
+    min_row, min_col, max_row, max_col = 0, 0, 0, 0
+
+    for line in file:
+        color = line.strip().split()[2]
+        amt = int(color[2:7], base=16)
+        dir = int(color[-2])
+
+        print(amt, dir)
+        
+
+
 if __name__ == "__main__":
+    # with open("input.txt") as file:
+    #     print(part1(file))
+
     with open("input.txt") as file:
-        print(part1(file))
+        print(part2(file))
