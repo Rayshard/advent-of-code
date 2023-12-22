@@ -1,8 +1,6 @@
 from collections import defaultdict
-from dataclasses import dataclass
 from io import TextIOWrapper
 from pprint import pprint as print, pformat as format
-from typing import Iterable
 
 
 Coord = tuple[int, int, int]
@@ -10,15 +8,24 @@ Coord2D = tuple[int, int]
 
 
 class Block:
-    def __init__(self, bricks: set[Coord]) -> None:
-        self.bricks = bricks
-        self.min_z = min(brick[2] for brick in self.bricks)
-        self.max_z = max(brick[2] for brick in self.bricks)
-        self.bottom = {(x, y) for (x, y, z) in bricks if z == self.min_z}
-        self.top = {(x, y) for (x, y, z) in bricks if z == self.max_z}
+    def __init__(self, start: Coord, end: Coord) -> None:
+        (x1, y1, z1) = self.start = start
+        (x2, y2, z2) = self.end = end
+
+        assert x1 >= x2
+        assert y1 >= y2
+        assert z1 >= z2
+
+    @property
+    def min_z(self) -> int:
+        self.start[2]
+
+    @property
+    def max_z(self) -> int:
+        self.end[2]
 
     def __repr__(self) -> str:
-        return str(self.__dict__)
+        return format((self.start, self.end))
 
 
 class Space:
@@ -46,15 +53,8 @@ def parse_space(file: TextIOWrapper) -> Space:
     space = Space()
 
     for line in file:
-        (x1, y1, z1), (x2, y2, z2) = [tuple(map(int, item.split(","))) for item in line.strip().split("~")]
-        bricks = set[Coord]()
-
-        for x in range(x1, x2 + 1):
-            for y in range(y1, y2 + 1):
-                for z in range(z1, z2 + 1):
-                    bricks.add((x, y, z))
-
-        space.add_block(Block(bricks))
+        start, end = [tuple(map(int, item.split(","))) for item in line.strip().split("~")]
+        space.add_block(Block(start, end))
 
     return space
 
@@ -76,7 +76,7 @@ def part1(file: TextIOWrapper) -> int:
 
         for z in range(2, space.max_z + 1):
             current_plane = space.blocks[z]
-            plane_beneath = set[Coord2D].union(set[Coord2D](), *(block.top for block in new_space.blocks[z - 1].values()))
+            blocks_beneath = new_space.blocks[z - 1].values()
 
             for block_id, block in current_plane.items():
                 if block_id in handled:
