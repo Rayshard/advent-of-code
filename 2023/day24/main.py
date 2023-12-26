@@ -14,21 +14,21 @@ class Hailstone:
     vz: int
 
     @property
-    def slope(self) -> float:
+    def slope_2D(self) -> float:
         return self.vy / self.vx
 
     def y_at_x(self, x: float) -> float:
-        return self.slope * (x - self.x) + self.y
+        return self.slope_2D * (x - self.x) + self.y
 
     def __repr__(self) -> str:
         return f"{self.x}, {self.y}, {self.z} @ {self.vx}, {self.vy}, {self.vz}"
 
 
 def calculate_x_intersection(hailstone_a: Hailstone, hailstone_b: Hailstone) -> Optional[float]:
-    if hailstone_a.slope == hailstone_b.slope:
+    if hailstone_a.slope_2D == hailstone_b.slope_2D:
         return None
 
-    return (hailstone_b.y - hailstone_a.y + hailstone_a.slope * hailstone_a.x - hailstone_b.slope * hailstone_b.x) / (hailstone_a.slope - hailstone_b.slope)
+    return (hailstone_b.y - hailstone_a.y + hailstone_a.slope_2D * hailstone_a.x - hailstone_b.slope_2D * hailstone_b.x) / (hailstone_a.slope_2D - hailstone_b.slope_2D)
 
 
 def cross_inside_test_area(hailstone_a: Hailstone, hailstone_b: Hailstone, test_area_boundary: tuple[int, int]) -> bool:
@@ -48,7 +48,7 @@ def cross_inside_test_area(hailstone_a: Hailstone, hailstone_b: Hailstone, test_
 
 def part1(file: TextIOWrapper) -> int:
     hailstones = list[Hailstone]()
-    test_area_boundary = (200000000000000, 400000000000000)
+    test_area_boundary = (7, 27)
 
     for line in file:
         x, y, z, vx, vy, vz = (int(i) for i in re.split(r",?\s+@?\s*", line.strip()))
