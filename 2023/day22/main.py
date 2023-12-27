@@ -40,16 +40,20 @@ def simulate(space: set[Coord], blocks: list[Block]) -> tuple[set[Coord], list[B
 
             while not done:
                 new_block = list[Coord]()
+                fell = True
                 for x, y, z in block:
                     new_coord = (x, y, z - 1)
 
                     if z == 1 or new_coord in space:
                         done = True
                         new_block = block
+                        fell = False
                         break
                     else:
                         new_block.append(new_coord)
-                        fallen_blocks.add(i)
+
+                if fell:
+                    fallen_blocks.add(i)
 
                 block = new_block
 
@@ -92,14 +96,22 @@ def find_disintegratable_blocks(blocks: list[Block]) -> set[int]:
 
     return disintegratable_blocks
 
-def part1(file: TextIOWrapper) -> int:
+
+def solve(file: TextIOWrapper) -> int:
     space, blocks = parse_space(file)
     space, blocks, _ = simulate(space, blocks)
     disintegratable_blocks = find_disintegratable_blocks(blocks)
+    non_disintegratable_blocks = set(range(len(blocks))) - disintegratable_blocks
 
-    return len(disintegratable_blocks)
+    part_2_result = 0
+
+    for ndb in non_disintegratable_blocks:
+        _, _, fallen = simulate(space.difference(blocks[ndb]), blocks[:ndb] + blocks[ndb+1:])
+        part_2_result += len(fallen)
+
+    return len(disintegratable_blocks), part_2_result
 
 
 if __name__ == "__main__":
     with open("input.txt") as file:
-        print(part1(file))
+        print(solve(file))
