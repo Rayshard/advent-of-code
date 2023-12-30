@@ -1,13 +1,18 @@
+from dataclasses import dataclass
 from io import TextIOWrapper
-from typing import Callable
-
-import re
+from typing import Literal
 
 
-WorkflowRule = tuple[Callable[[], bool], str]
-Workflow = tuple[str, dict[str, WorkflowRule]]
+WorkflowRule = tuple[str, Literal["<", ">"], int, str] | str
 
-def part1(file: TextIOWrapper) -> int:
+
+@dataclass(frozen=True)
+class Workflow:
+    name: str
+    rules: list[WorkflowRule]
+
+
+def parse_workflows(file: TextIOWrapper) -> dict[str, Workflow]:
     workflows = dict[str, Workflow]()
 
     for line in file:
@@ -16,56 +21,67 @@ def part1(file: TextIOWrapper) -> int:
 
         name, rules_raw = line.strip()[:-1].split("{")
         rules_raw = rules_raw.split(",")
-        rules = dict[str, WorkflowRule]()
+        rules = list[tuple[str, WorkflowRule]]()
 
         for raw_rule in rules_raw:
             match raw_rule.split(":"):
                 case [dest]:
-                    rules[None] = (lambda _: True, dest)
+                    rule = dest
                 case [expr, dest] if ">" in expr:
-                    part, value = expr.split(">")
-                    rules[part] = (lambda x: print(x, ">", value) or x > int(value), dest)
+                    rating_name, value = expr.split(">")
+                    rule = (rating_name, ">", int(value), dest)
                 case [expr, dest] if "<" in expr:
-                    part, value = expr.split("<")
-                    rules[part] = (lambda x: print(x, "<", value) or x < int(value), dest)
+                    rating_name, value = expr.split("<")
+                    rule = (rating_name, "<", int(value), dest)
                 case raw_rule:
                     raise RuntimeError(f"Invalid rule: {raw_rule}")
 
-        workflows[name] = (name, rules)
+            rules.append(rule)
 
-    accepteds = 0
+        workflows[name] = Workflow(name, rules)
+
+    return workflows
+
+def part1(file: TextIOWrapper) -> int:
+    workflows = parse_workflows(file)
+    accepted = list[dict[str, int]]()
 
     for line in file:
-        part_ratings = [tuple(item.split("=")) for item in line.strip()[1:-1].split(",")]
+        part_ratings = {name: int(value) for name, value in (item.split("=") for item in line.strip()[1:-1].split(","))}
         current_workflow = workflows["in"]
 
         while True:
-            dest = current_workflow[1][None][1]
-            current_workflow_name, current_workflow_rules = current_workflow
+            for rule in current_workflow.rules:
+                match rule:
+                    case rating_name, operation, value, dest if (rating_value := part_ratings.get(rating_name)) is not None:
+                        match = False
 
-            for rating_id, rating_value in part_ratings:
-                print(current_workflow_name, rating_id, rating_value)
-                rating_value = int(rating_value)
+                        match operation:
+                            case "<":
+                                match = rating_value < value
+                            case ">":
+                                match = rating_value > value
+                            case _:
+                                raise RuntimeError(operation)
 
-                if rating_id in current_workflow_rules:
-                    if current_workflow_rules[rating_id][0](rating_value):
-                        dest = current_workflow_rules[rating_id][1]
-                        print(current_workflow_name, rating_id, rating_value, "Passed")
+                        if match:
+                            break
+                    case dest:
                         break
-                    else:
-                        print(current_workflow_name, rating_id, rating_value, "Failed")
-
 
             match dest:
                 case "A":
-                    accepteds += 1
+                    accepted.append(part_ratings)
                     break
                 case "R":
                     break
                 case dest:
                     current_workflow = workflows[dest]
 
-    return accepteds
+    for pr in accepted:
+        print(pr)
+
+    return sum(sum(pr.values()) for pr in accepted)
 
 
 if __name__ == "__main__":
