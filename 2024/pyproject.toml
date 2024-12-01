@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "aoc-2024"
+version = "0.1.0"
+description = "Advent of Code 2024"
+authors = ["Rayshard Thompson"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.8.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
