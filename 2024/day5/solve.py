@@ -1,30 +1,30 @@
 from collections import defaultdict
 from io import TextIOWrapper
 import sys
-from typing import Callable, Mapping
-import functools
+from typing import Mapping
+
 
 def cmp(a: int, b: int, graph: Mapping[int, set[int]]) -> int:
     if a == b:
         return 0  # a == b
-    
+
     if a not in graph:
-        return ((cmp(b, a, graph) == 1) and -1) or 1
-    
+        return 1  # b > a
+
     a_greaters = graph[a]
     if b in a_greaters:
         return -1
 
     if any(cmp(greater, b, graph) == -1 for greater in a_greaters):
-        return -1
+        return -1  # a < b
     else:
-        return ((cmp(b, a, graph) == 1) and -1) or 1
+        return 1  # b > a
 
 
 def part1(input: TextIOWrapper) -> int:
     result = 0
 
-    # Build Graph
+    # Build graph
     graph = defaultdict[int, set[int]](set[int])
 
     for line in input:
@@ -37,20 +37,18 @@ def part1(input: TextIOWrapper) -> int:
     # Get correctly ordered updates
     for line in input:
         page_numbers = [int(i) for i in line.split(",")]
+
+        # Build graph that only includes starting nodes from the page
+        page_numbers_set = set(page_numbers)
+        relevant_graph = {
+            num: greaters for num, greaters in graph.items() if num in page_numbers_set
+        }
+
+        # Compare pairwise
         pair_wise = zip(page_numbers[:-1], page_numbers[1:])
-        ordered = all(cmp(a, b, graph) == -1 for a, b in pair_wise)
 
-        if ordered:
+        if all(cmp(a, b, relevant_graph) == -1 for a, b in pair_wise):
             result += page_numbers[len(page_numbers) // 2]
-
-    # print(cmp(75, 97, graph))
-
-    # from pprint import pprint
-    # pprint(dict(graph))
-
-
-    # numbers = set(graph.keys()).union(*(s for s in graph.values()))
-    # print(sorted(numbers, key=functools.cmp_to_key(lambda a, b: cmp(a, b, graph))))
 
     return result
 
