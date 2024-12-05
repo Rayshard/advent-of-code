@@ -42,6 +42,26 @@ def get_num_xmas(origin: tuple[int, int], map: list[str]) -> int:
     return count
 
 
+def is_x_mas(origin: tuple[int, int], map: list[str]) -> bool:
+    origin_row, origin_col = origin
+
+    possibilities = {
+        ("M", "M", "S", "S"),
+        ("M", "S", "M", "S"),
+        ("S", "S", "M", "M"),
+        ("S", "M", "S", "M"),
+    }
+
+    chars = (
+        get_char(map, origin_row - 1, origin_col - 1),  # top-left
+        get_char(map, origin_row - 1, origin_col + 1),  # top-right
+        get_char(map, origin_row + 1, origin_col - 1),  # bottom-left
+        get_char(map, origin_row + 1, origin_col + 1),  # bottom-right
+    )
+
+    return chars in possibilities
+
+
 def part1(input: TextIOWrapper) -> int:
     possible_origins = list[tuple[int, int]]()
     map = list[str]()
@@ -60,7 +80,20 @@ def part1(input: TextIOWrapper) -> int:
 
 
 def part2(input: TextIOWrapper) -> int:
-    return 0
+    possible_origins = list[tuple[int, int]]()
+    map = list[str]()
+
+    # Build the map
+    for row, line in enumerate(input):
+        map.append(line)
+
+        for col, char in enumerate(line):
+            if char == "A":
+                possible_origins.append((row, col))
+
+    return sum(
+        is_x_mas(possible_origin, map) for possible_origin in possible_origins
+    )
 
 
 if __name__ == "__main__":
