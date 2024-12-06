@@ -2,14 +2,17 @@ from io import TextIOWrapper
 import sys
 from typing import Literal
 
-Direction = Literal["U", "D" , "L", "R"]
+Direction = Literal["U", "D", "L", "R"]
+Vec2 = tuple[int, int]
+TerminationReason = Literal["OFF_MAP", "LOOP"]
 
-def part1(input: TextIOWrapper) -> int:
-    obstacles = set[tuple[int, int]]()
+
+def read_map(input: TextIOWrapper) -> tuple[Vec2, set[Vec2], Vec2]:
+    obstacles = set[Vec2]()
 
     lines = list(line.strip() for line in input)
-    map_width, map_height = len(lines[0]), len(lines)
-    guard_pos : tuple[int, int] | None = None
+    map_size = len(lines[0]), len(lines)
+    guard_pos: Vec2 | None = None
 
     for row, line in enumerate(lines):
         for col, char in enumerate(line):
@@ -25,12 +28,25 @@ def part1(input: TextIOWrapper) -> int:
                     raise NotImplementedError(char)
 
     assert guard_pos is not None
-    guard_row, guard_col = guard_pos
-    guard_dir :Direction= "U"
-    tiles_touched = set[tuple[int, int]]()
+    return map_size, obstacles, guard_pos
 
-    while (0 <= guard_row < map_height and 0<= guard_col < map_width):
-        tiles_touched.add(guard_pos)
+
+def simulate(
+    map_size: Vec2, obstacles: set[Vec2], guard_pos: Vec2
+) -> tuple[set[tuple[Vec2, Direction]], TerminationReason]:
+    map_width, map_height = map_size
+    guard_row, guard_col = guard_pos
+    guard_dir: Direction = "U"
+    tiles_touched = set[tuple[Vec2, Direction]]()
+
+    termination_reason: TerminationReason = "OFF_MAP"
+
+    while 0 <= guard_row < map_height and 0 <= guard_col < map_width:
+        if (pair := (guard_pos, guard_dir)) in tiles_touched:
+            termination_reason = "LOOP"
+            break
+
+        tiles_touched.add(pair)
 
         match guard_dir:
             case "U":
@@ -51,11 +67,39 @@ def part1(input: TextIOWrapper) -> int:
         else:
             guard_row, guard_col = guard_pos = new_pos
 
-    return len(tiles_touched)
+    return tiles_touched, termination_reason
+
+
+def part1(input: TextIOWrapper) -> int:
+    (map_width, map_height), obstacles, guard_pos = read_map(input)
+    tiles_touched, _ = simulate((map_width, map_height), obstacles, guard_pos)
+
+    return len(set(tile_pos for tile_pos, _ in tiles_touched))
 
 
 def part2(input: TextIOWrapper) -> int:
-    return 0
+    (map_width, map_height), obstacles, guard_pos = read_map(input)
+
+    # Run simulation with no additional obstacles to narrow down how many
+    # new obstacles we need to test for
+    tiles_touched, _ = simulate((map_width, map_height), obstacles, guard_pos)
+    additional_obstacles = {tile_pos for tile_pos, dir in tiles_touched}
+
+    # Don't wanna place an obstacle on the starting pos
+    additional_obstacles.remove(guard_pos)
+
+    # Simulate with each additional obstacle and check for a loop
+    loops = 0
+
+    for additional_obstacle in additional_obstacles:
+        _, termination_reason = simulate(
+            (map_width, map_height), obstacles | {additional_obstacle}, guard_pos
+        )
+
+        if termination_reason == "LOOP":
+            loops += 1
+
+    return loops
 
 
 if __name__ == "__main__":
