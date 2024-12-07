@@ -1,30 +1,51 @@
 from io import TextIOWrapper
 import sys
+from typing import Callable
+
+
+def parse_line(line: str) -> tuple[int, list[int]]:
+    left, right = line.split(": ")
+    return int(left), [int(num) for num in right.split()]
+
+
+def solve_all(
+    equation: list[int],
+    upper_limit: int,
+    operators: list[Callable[[int, int], int]],
+) -> list[int]:
+    solutions = [equation[0]]
+
+    for num in equation[1:]:
+        new_solutions = []
+
+        for prev in solutions:
+            new_solutions += [
+                result
+                for operator in operators
+                if (result := operator(prev, num)) <= upper_limit
+            ]
+
+        solutions = new_solutions
+
+    return solutions
 
 
 def part1(input: TextIOWrapper) -> int:
     result = 0
 
     for line in input:
-        left, right = line.split(": ")
-        expected = int(left)
-        nums = [int(num) for num in right.split()]
+        expected, equation = parse_line(line)
 
-        level = [nums[0]]
+        solutions = solve_all(
+            equation,
+            expected,
+            operators=[
+                lambda a, b: a + b,
+                lambda a, b: a * b,
+            ],
+        )
 
-        for num in nums[1:]:
-            new_level = []
-
-            for prev in level:
-                if (sum := prev + num) <= expected:
-                    new_level.append(sum)
-
-                if (product := prev * num) <= expected:
-                    new_level.append(product)
-
-            level = new_level
-
-        if expected in level:
+        if expected in solutions:
             result += expected
 
     return result
@@ -34,28 +55,19 @@ def part2(input: TextIOWrapper) -> int:
     result = 0
 
     for line in input:
-        left, right = line.split(": ")
-        expected = int(left)
-        nums = [int(num) for num in right.split()]
+        expected, equation = parse_line(line)
 
-        level = [nums[0]]
+        solutions = solve_all(
+            equation,
+            expected,
+            operators=[
+                lambda a, b: a + b,
+                lambda a, b: a * b,
+                lambda a, b: int(str(a) + str(b)),
+            ],
+        )
 
-        for num in nums[1:]:
-            new_level = []
-
-            for prev in level:
-                if (sum := prev + num) <= expected:
-                    new_level.append(sum)
-
-                if (product := prev * num) <= expected:
-                    new_level.append(product)
-
-                if (concat := int(str(prev) + str(num))) <= expected:
-                    new_level.append(concat)
-
-            level = new_level
-
-        if expected in level:
+        if expected in solutions:
             result += expected
 
     return result
