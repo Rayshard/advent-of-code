@@ -66,11 +66,6 @@ def get_pages(input: TextIOWrapper) -> tuple[list[int], list[int]]:
     return ordered, reordered
 
 
-def order_page(page: list[int], graph: Mapping[int, set[int]]) -> list[int]:
-    page_graph = get_page_graph(page, graph)
-    return sorted(page, key=functools.cmp_to_key(lambda a, b: cmp(a, b, page_graph)))
-
-
 if __name__ == "__main__":
     assert (file_path := next(iter(sys.argv[1:]), "")), "Missing file path argument"
 
