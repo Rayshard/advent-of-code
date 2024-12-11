@@ -1,3 +1,4 @@
+from collections import defaultdict
 from io import TextIOWrapper
 import sys
 
@@ -25,11 +26,37 @@ def run_25(stones: list[int]) -> list[int]:
 
 def part1(input: TextIOWrapper) -> int:
     stones = [int(stone) for stone in input.readline().strip().split()]
-    after_25 = run_25(stones)
+    cache = dict[int, list[int]]()
 
-    # for stone in stones:
+    after_25 = defaultdict[int, int](int)
+    for stone in stones:
+        if stone not in cache:
+            cache[stone] = run_25([stone])
+        
+        for new_stone in cache[stone]:
+            after_25[new_stone] += 1
 
-    return len(stones)
+    print(sum(after_25.values()))
+
+    after_50 = defaultdict[int, int](int)
+    for stone, count in after_25.items():
+        if stone not in cache:
+            cache[stone] = run_25([stone])
+        
+        for p_stone in cache[stone]:
+            after_50[p_stone] += count
+
+    print(sum(after_50.values()))
+
+    after_75 = defaultdict[int, int](int)
+    for stone, count in after_50.items():
+        if stone not in cache:
+            cache[stone] = run_25([stone])
+        
+        for p_stone in cache[stone]:
+            after_75[p_stone] += count
+
+    return sum(after_75.values())
 
 
 def part2(input: TextIOWrapper) -> int:
