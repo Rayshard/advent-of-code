@@ -3,9 +3,8 @@ import sys
 
 Vec2 = tuple[int, int]
 Map = dict[Vec2, int]
-Trail = list[Vec2]
 
-UDLR = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+UDLR = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # UP, DOWN, LEFT, RIGHT
 
 
 def parse_map(input: TextIOWrapper) -> tuple[Map, set[Vec2]]:
@@ -14,9 +13,6 @@ def parse_map(input: TextIOWrapper) -> tuple[Map, set[Vec2]]:
 
     for row, line in enumerate(input):
         for col, char in enumerate(line.strip()):
-            if char == ".":
-                continue
-
             coord, height = (row, col), int(char)
             map[coord] = height
 
@@ -26,36 +22,38 @@ def parse_map(input: TextIOWrapper) -> tuple[Map, set[Vec2]]:
     return map, trailheads
 
 
-def get_reachable_ends(map: Map, start: Vec2) -> set[Vec2]:
-    def helper(tail: Vec2) -> set[Vec2]:
+def get_trail_ends(map: Map, start: Vec2) -> list[Vec2]:
+    def helper(tail: Vec2) -> list[Vec2]:
+        if (tail_height := map[tail]) == 9:
+            return [tail]
+
         ends = list[Vec2]()
-        tail_height = map[tail]
 
-        if tail_height == 9:
-            ends.append(tail)
-        else:
-            for row, col in UDLR:
-                adj: Vec2 = (tail[0] + row, tail[1] + col)
+        for row, col in UDLR:
+            adj: Vec2 = (tail[0] + row, tail[1] + col)
 
-                if (adj_height := map.get(adj)) is None:
-                    continue
-                elif adj_height != (tail_height + 1):
-                    continue
+            if (adj_height := map.get(adj)) is None:
+                continue
+            elif adj_height != (tail_height + 1):
+                continue
 
-                ends.extend(helper(adj))
+            ends += helper(adj)
 
-        return set(ends)
+        return ends
 
     return helper(start)
 
 
 def part1(input: TextIOWrapper) -> int:
     map, trailheads = parse_map(input)
-    return sum(len(get_reachable_ends(map, trailhead)) for trailhead in trailheads)
+    unique_ends = (set(get_trail_ends(map, trailhead)) for trailhead in trailheads)
+    return sum(len(re) for re in unique_ends)
 
 
 def part2(input: TextIOWrapper) -> int:
-    return 0
+    map, trailheads = parse_map(input)
+    trail_ends = (get_trail_ends(map, trailhead) for trailhead in trailheads)
+    return sum(len(te) for te in trail_ends)
 
 
 if __name__ == "__main__":
