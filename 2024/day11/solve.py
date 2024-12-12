@@ -1,66 +1,56 @@
 from collections import defaultdict
 from io import TextIOWrapper
 import sys
+from typing import Mapping
 
 
-def run_25(stones: list[int]) -> list[int]:
-    new_stones = list[int]()
+def parse_stones(input: TextIOWrapper) -> list[int]:
+    return [int(stone) for stone in input.readline().strip().split()]
 
-    for _ in range(25):
-        for stone in stones:
-            if stone == 0:
-                new_stones.append(1)
-            elif len(digits := str(stone)) % 2 == 0:
-                half = len(digits) // 2
-                left = int(digits[:half])
-                right = int(digits[half:])
 
-                new_stones += [left, right]
-            else:
-                new_stones.append(stone * 2024)
+def handle_stone(stone: int) -> list[int]:
+    if stone == 0:
+        return [1]
+    elif len(digits := str(stone)) % 2 == 0:
+        half = len(digits) // 2
+        left = int(digits[:half])
+        right = int(digits[half:])
 
-        stones = new_stones
-        new_stones = list[int]()
+        return [left, right]
+    else:
+        return [stone * 2024]
 
-    return stones
+
+def run(stones: list[int], num_iterations: int) -> Mapping[int, int]:
+    cache = dict[int, list[int]]()
+    prev_iteration = defaultdict[int, int](int)
+
+    for stone in stones:
+        prev_iteration[stone] += 1
+
+    for _ in range(num_iterations):
+        cur_iteration = defaultdict[int, int](int)
+
+        for stone, count in prev_iteration.items():
+            if stone not in cache:
+                cache[stone] = handle_stone(stone)
+
+            for stone_child in cache[stone]:
+                cur_iteration[stone_child] += count
+
+        prev_iteration = cur_iteration
+
+    return prev_iteration
+
 
 def part1(input: TextIOWrapper) -> int:
-    stones = [int(stone) for stone in input.readline().strip().split()]
-    cache = dict[int, list[int]]()
-
-    after_25 = defaultdict[int, int](int)
-    for stone in stones:
-        if stone not in cache:
-            cache[stone] = run_25([stone])
-        
-        for new_stone in cache[stone]:
-            after_25[new_stone] += 1
-
-    print(sum(after_25.values()))
-
-    after_50 = defaultdict[int, int](int)
-    for stone, count in after_25.items():
-        if stone not in cache:
-            cache[stone] = run_25([stone])
-        
-        for p_stone in cache[stone]:
-            after_50[p_stone] += count
-
-    print(sum(after_50.values()))
-
-    after_75 = defaultdict[int, int](int)
-    for stone, count in after_50.items():
-        if stone not in cache:
-            cache[stone] = run_25([stone])
-        
-        for p_stone in cache[stone]:
-            after_75[p_stone] += count
-
-    return sum(after_75.values())
+    stones = parse_stones(input)
+    return sum(run(stones, 25).values())
 
 
 def part2(input: TextIOWrapper) -> int:
-    return 0
+    stones = parse_stones(input)
+    return sum(run(stones, 75).values())
 
 
 if __name__ == "__main__":
