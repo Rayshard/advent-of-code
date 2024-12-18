@@ -2,9 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from io import TextIOWrapper
 import sys
-import time
 import string
-from typing import Optional
 
 
 Vec2 = tuple[int, int]
